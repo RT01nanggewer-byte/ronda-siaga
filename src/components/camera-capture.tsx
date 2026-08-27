@@ -1,20 +1,18 @@
 import { useRef, useState } from "react";
 import { DESA } from "../lib/ronda/config";
+import { mediaTitle } from "../lib/ronda/labels";
 import { saveMediaBlob } from "../lib/ronda/media-db";
 import type { AbsenMode } from "../lib/ronda/store";
-
-const MODE_LABEL: Record<AbsenMode, string> = {
-  masuk: "MASUK",
-  selesai: "SELESAI",
-  kampung: "KAMPUNG",
-  kejadian: "KEJADIAN",
-};
 
 export type CaptureResult = {
   src: string;
   kind: "foto" | "video";
   mediaId?: string;
 };
+
+function stampLabel(mode: AbsenMode, kind: "foto" | "video") {
+  return mediaTitle(mode, kind).toUpperCase();
+}
 
 async function stampPhoto(file: File, officer: string, mode: AbsenMode, stamp: string) {
   const raw = await createImageBitmap(file);
@@ -35,7 +33,7 @@ async function stampPhoto(file: File, officer: string, mode: AbsenMode, stamp: s
   ctx.font = `600 ${Math.round(canvas.width * 0.045)}px sans-serif`;
   ctx.fillText(officer, 24, canvas.height - h + 38);
   ctx.font = `500 ${Math.round(canvas.width * 0.032)}px sans-serif`;
-  ctx.fillText(`${MODE_LABEL[mode]}  ·  ${stamp}`, 24, canvas.height - h + 68);
+  ctx.fillText(`${stampLabel(mode, "foto")}  ·  ${stamp}`, 24, canvas.height - h + 68);
   ctx.fillText(DESA, 24, canvas.height - h + 96);
   return canvas.toDataURL("image/jpeg", 0.82);
 }
@@ -57,7 +55,7 @@ export function CameraCapture({
   const videoRef = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const allowVideo = mode === "kejadian" || mode === "kampung";
+  const allowVideo = mode === "kejadian";
 
   async function onPhoto(file?: File) {
     if (!file) return;
@@ -92,7 +90,9 @@ export function CameraCapture({
       <p className="text-sm tracking-[0.14em] text-white/50">KAMERA BAWAAN HP</p>
       <h2 className="mt-1 font-clock text-[2.1rem] leading-none text-white">{officer}</h2>
       <p className="mt-2 text-white/70">
-        {MODE_LABEL[mode]} · {stamp}. HP akan membuka kamera aslinya, termasuk ganti kamera depan/belakang.
+        {mode === "kejadian"
+          ? "Pilih foto atau video. Hasilnya otomatis bernama foto kejadian atau video kejadian."
+          : `${mediaTitle(mode)} · ${stamp}`}
       </p>
 
       <input
@@ -121,7 +121,7 @@ export function CameraCapture({
           onClick={() => photoRef.current?.click()}
           disabled={busy}
         >
-          Ambil foto kamera HP
+          {mode === "kampung" ? "Ambil foto kampung" : mode === "kejadian" ? "Ambil foto kejadian" : "Ambil foto kamera HP"}
         </button>
         {allowVideo ? (
           <button
