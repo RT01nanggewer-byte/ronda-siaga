@@ -1,21 +1,85 @@
+import { useState } from "react";
 import { APP_NAME, APP_VERSION, DESA, POS_LAT, POS_LNG, POS_RADIUS_M } from "../lib/ronda/config";
 import { allOfficers } from "../lib/ronda/roster";
 import { useRonda } from "../lib/ronda/store";
 import type { Page } from "../app";
 
+const SCRIPT = `function doPost(e) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('Absen') || ss.insertSheet('Absen');
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(['Tanggal','Hari','Bulan','Tahun','Nama','Jam Masuk','Jam Selesai','Poin','Jenis','Foto Masuk','Foto Selesai','Foto Kampung','Foto Kejadian']);
+  }
+  const data = JSON.parse(e.postData.contents);
+  const rows = data.rows || [data];
+  rows.forEach(function(d) {
+    sheet.appendRow([d.tanggal, d.hari, d.bulan, d.tahun, d.nama, d.jamMasuk, d.jamSelesai, d.poin, d.jenis, d.adaFotoMasuk, d.adaFotoSelesai, d.adaFotoKampung, d.adaFotoKejadian]);
+  });
+  return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+}`;
+
 export function Menu({ onPage }: { onPage: (p: Page) => void }) {
-  const { settings, setTestMode, clearAbsen, attendance, photos } = useRonda();
+  const { settings, setTestMode, setSheetUrl, clearAbsen, attendance, photos, syncAllToSheet } = useRonda();
   const members = allOfficers();
+  const [url, setUrl] = useState(settings.sheetUrl || "");
+  const [saved, setSaved] = useState("");
 
   return (
     <>
       <p className="text-sm tracking-[0.14em] text-muted-foreground">PENGURUS</p>
       <h1 className="mt-1 font-clock text-[2.4rem] leading-none">Menu</h1>
       <p className="mt-2 text-muted-foreground">
-        Atur anggota, PIN, lokasi pos, dan jam absen. Perubahan tersimpan di HP ini.
+        Atur anggota, PIN, lokasi pos, spreadsheet, dan jam absen.
       </p>
 
       <section className="mt-6 rounded-[28px] bg-card p-5">
+        <h2 className="text-xl font-medium">Google Spreadsheet</h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          1. Buat Google Sheet baru. 2. Extensi → Apps Script. 3. Tempel skrip di bawah, simpan. 4. Deploy → New deployment → Web app. Execute as: Me. Who has access: Anyone. 5. Salin URL Web app ke kotak ini.
+        </p>
+        <textarea
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://script.google.com/macros/s/.../exec"
+          className="mt-3 min-h-24 w-full rounded-2xl bg-[#141c18] px-3 py-3 text-sm"
+        />
+        <button
+          type="button"
+          className="mt-3 h-12 w-full rounded-2xl bg-primary text-primary-foreground"
+          onClick={() => {
+            setSheetUrl(url);
+            setSaved("Tautan disimpan di HP ini.");
+          }}
+        >
+          Simpan tautan Spreadsheet
+        </button>
+        <button
+          type="button"
+          className="mt-2 h-12 w-full rounded-2xl bg-[#1b2420]"
+          onClick={async () => {
+            const ok = await syncAllToSheet();
+            setSaved(ok ? "Semua absen dikirim ke Sheet." : "Isi tautan dulu, atau cek Deploy Web app.");
+          }}
+        >
+          Kirim semua data ke Sheet
+        </button>
+        {saved ? <p className="mt-2 text-sm text-muted-foreground">{saved}</p> : null}
+        <button
+          type="button"
+          className="mt-3 text-sm text-primary"
+          onClick={async () => {
+            await navigator.clipboard.writeText(SCRIPT);
+            setSaved("Skrip Apps Script disalin. Tempel di Google Sheet.");
+          }}
+        >
+          Salin skrip Google Apps Script
+        </button>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          Foto tidak ikut masuk Sheet karena ukurannya besar. Sheet mencatat Ya/Tidak ada foto. Lihat fotonya di tab Foto atau Laporan.
+        </p>
+      </section>
+
+      <section className="mt-4 rounded-[28px] bg-card p-5">
         <h2 className="text-xl font-medium">Daftar anggota ronda</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {members.length} orang terdaftar. Jadwal harian ada di halaman Jadwal.
@@ -90,7 +154,7 @@ export function Menu({ onPage }: { onPage: (p: Page) => void }) {
 
       <section className="mt-4 rounded-[28px] bg-card p-5">
         <h2 className="text-xl font-medium">Laporan & spreadsheet</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Unduh Excel, salin data, dan lihat grafik di Laporan.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Unduh Excel, grafik poin, rekap bulan dan tahun.</p>
         <button type="button" className="mt-3 text-primary" onClick={() => onPage("laporan")}>
           Buka laporan absensi
         </button>

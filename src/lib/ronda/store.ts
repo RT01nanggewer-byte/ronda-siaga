@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { POS_LAT, POS_LNG, POS_RADIUS_M } from "./config";
+import { attendanceToSheetRow, pushRowsToSheet } from "./sheet";
 
 export type AbsenMode = "masuk" | "selesai" | "kampung" | "kejadian";
 
@@ -35,6 +36,7 @@ type Settings = {
   dismissedShiftDate: string | null;
   notifiedShiftDate: string | null;
   notifyEnabled: boolean;
+  sheetUrl: string;
 };
 
 type State = {
@@ -45,14 +47,16 @@ type State = {
   dismissNotice: (shiftDate: string) => void;
   markNotified: (shiftDate: string) => void;
   setNotifyEnabled: (v: boolean) => void;
+  setSheetUrl: (v: string) => void;
   upsertAttendance: (row: Attendance) => void;
   addPhoto: (photo: Photo) => void;
+  syncAllToSheet: () => Promise<boolean>;
   clearAbsen: () => void;
 };
 
 export const useRonda = create<State>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       settings: {
         lat: POS_LAT,
         lng: POS_LNG,
@@ -61,6 +65,7 @@ export const useRonda = create<State>()(
         dismissedShiftDate: null,
         notifiedShiftDate: null,
         notifyEnabled: false,
+        sheetUrl: "",
       },
       attendance: [],
       photos: [],
@@ -70,7 +75,8 @@ export const useRonda = create<State>()(
       markNotified: (shiftDate) =>
         set((s) => ({ settings: { ...s.settings, notifiedShiftDate: shiftDate } })),
       setNotifyEnabled: (v) => set((s) => ({ settings: { ...s.settings, notifyEnabled: v } })),
-      upsertAttendance: (row) =>
+      setSheetUrl: (v) => set((s) => ({ settings: { ...s.settings, sheetUrl: v.trim() } })),
+      upsertAttendance: (row) => {
         set((s) => {
           const i = s.attendance.findIndex((a) => a.name === row.name && a.shiftDate === row.shiftDate);
           if (i >= 0) {
@@ -79,9 +85,20 @@ export const useRonda = create<State>()(
             return { attendance: next };
           }
           return { attendance: [...s.attendance, { ...row, poin: row.selesai ? 2 : 1 }] };
-        }),
+        });
+        const s = get();
+        if (row.test || !s.settings.sheetUrl) return;
+        const saved = s.attendance.find((a) => a.name === row.name && a.shiftDate === row.shiftDate);
+        if (saved) void pushRowsToSheet(s.settings.sheetUrl, [attendanceToSheetRow(saved, s.photos)]);
+      },
       addPhoto: (photo) =>
         set((s) => ({ photos: [photo, ...s.photos].slice(0, 80) })),
+      syncAllToSheet: async () => {
+        const s = get();
+        if (!s.settings.sheetUrl) return false;
+        const rows = s.attendance.filter((a) => !a.test).map((a) => attendanceToSheetRow(a, s.photos));
+        return pushRowsToSheet(s.settings.sheetUrl, rows);
+      },
       clearAbsen: () => set({ attendance: [], photos: [] }),
     }),
     { name: "ronda-siaga-v16" },
