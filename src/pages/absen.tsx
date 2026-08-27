@@ -1,8 +1,8 @@
-import { MapPin } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CameraCapture } from "../components/camera-capture";
-import { POS_LAT, POS_LNG, POS_RADIUS_M } from "../lib/ronda/config";
-import { formatDistance, haversineMeters, isInsidePos } from "../lib/ronda/geo";
+import { GpsRadar } from "../components/gps-radar";
+import { POS_RADIUS_M } from "../lib/ronda/config";
+import { isInsidePos } from "../lib/ronda/geo";
 import { ROSTER } from "../lib/ronda/roster";
 import { type AbsenMode, useRonda } from "../lib/ronda/store";
 import { getShiftWindow, pad2 } from "../lib/ronda/time";
@@ -38,7 +38,16 @@ export function Absen({
   const officer = duty.find((d) => d.name === picked);
   const stamp = `${pad2(win.parts.hour)}.${pad2(win.parts.minute)} WIB`;
   const inside = settings.testMode || (geo ? isInsidePos(geo.lat, geo.lng) : false);
-  const dist = geo ? haversineMeters(geo.lat, geo.lng) : null;
+
+  function resetFlow(keepMode = true) {
+    setPicked(null);
+    setPin("");
+    setPhoto(null);
+    setCam(false);
+    setMsg(null);
+    setStep(1);
+    if (!keepMode) setMode("masuk");
+  }
 
   function pickName(name: string) {
     setPicked(name);
@@ -106,20 +115,11 @@ export function Absen({
     onPage("beranda");
   }
 
-  const gpsLabel = settings.testMode
-    ? "Mode uji · lokasi dianggap di pos"
-    : !geo
-      ? "Menunggu GPS"
-      : inside
-        ? "Sudah di dalam radius pos"
-        : "Di luar radius pos";
-  const gpsTone = settings.testMode || inside ? "bg-primary/15 text-primary" : !geo ? "bg-[#2a2418] text-amber" : "bg-[#3a2220] text-[#e8a39c]";
-
   return (
     <>
-      <p className="text-sm tracking-[0.14em] text-muted-foreground">IKUTI 4 LANGKAH</p>
-      <h1 className="mt-1 font-clock text-[2.4rem] leading-none">Absen {mode}</h1>
-      <p className="mt-2 text-muted-foreground">
+      <p className="text-[0.78rem] font-medium tracking-[0.16em] text-primary/80">IKUTI 4 LANGKAH</p>
+      <h1 className="mt-1 font-clock text-[2.45rem] leading-none">Absen {mode}</h1>
+      <p className="mt-2 text-[1.05rem] leading-snug text-muted-foreground">
         {win.hari} · giliran malam ini (berganti pukul 18.00)
       </p>
 
@@ -129,18 +129,29 @@ export function Absen({
           const active = step === n;
           const done = step > n;
           return (
-            <li
-              key={label}
-              className={`rounded-2xl px-1 py-2 ${active ? "bg-primary text-primary-foreground" : done ? "bg-primary/15 text-primary" : "bg-card text-muted-foreground"}`}
-            >
-              <span className="block text-xs opacity-70">{n}</span>
-              {label}
+            <li key={label}>
+              <button
+                type="button"
+                className={`h-full w-full rounded-2xl px-1 py-2 ${active ? "bg-primary text-primary-foreground" : done ? "bg-primary/15 text-primary" : "bg-card text-muted-foreground"}`}
+                onClick={() => {
+                  if (n === 1) resetFlow();
+                  else if (n === 2 && picked) {
+                    setStep(2);
+                    setCam(false);
+                  } else if (n === 3 && picked && pin === officer?.pin) {
+                    setStep(3);
+                    setCam(true);
+                  }
+                }}
+              >
+                {n}. {label}
+              </button>
             </li>
           );
         })}
       </ol>
 
-      <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
+      <div className="mt-4 grid grid-cols-4 gap-2">
         {MODES.map((m) => (
           <button
             key={m.id}
@@ -149,35 +160,41 @@ export function Absen({
               setMode(m.id);
               setMsg(null);
             }}
-            className={`rounded-full px-4 py-2 text-sm ${mode === m.id ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"}`}
+            className={`rounded-2xl px-1 py-2.5 text-sm ${mode === m.id ? "bg-primary text-primary-foreground" : "bg-[#141c18] text-muted-foreground"}`}
           >
             {m.label}
           </button>
         ))}
       </div>
 
-      <p className="mt-6 text-lg font-medium">1. Pilih nama Anda</p>
-      <p className="text-muted-foreground">Nama hijau jaga malam {win.hari}. Hanya mereka yang boleh absen.</p>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {duty.map((m) => (
-          <button
-            key={m.name}
-            type="button"
-            onClick={() => pickName(m.name)}
-            className={`min-h-16 rounded-2xl px-3 py-3 text-left font-medium ${
-              picked === m.name ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
-            }`}
-          >
-            {m.name}
-            <span className="mt-0.5 block text-sm opacity-80">Jaga malam ini</span>
-          </button>
-        ))}
-      </div>
+      {step === 1 ? (
+        <section className="mt-5 rounded-[28px] bg-[#141c18] p-5">
+          <p className="text-lg font-medium">1. Pilih nama Anda</p>
+          <p className="mt-1 text-muted-foreground">
+            Nama hijau jaga malam {win.hari}. Hanya mereka yang boleh absen.
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {duty.map((m) => (
+              <button
+                key={m.name}
+                type="button"
+                onClick={() => pickName(m.name)}
+                className="min-h-16 rounded-2xl bg-primary/12 px-3 py-3 text-left font-medium text-primary"
+              >
+                {m.name}
+                <span className="mt-0.5 block text-sm opacity-80">Jaga malam ini</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
-      {picked ? (
-        <>
-          <p className="mt-6 text-lg font-medium">2. Ketik PIN {picked}</p>
-          <p className="mb-3 text-center tracking-[0.45em] text-muted-foreground">{pin.replace(/./g, "\u2022") || "\u2014"}</p>
+      {step === 2 && picked ? (
+        <section className="mt-5 rounded-[28px] bg-[#141c18] p-5">
+          <p className="text-lg font-medium">2. Ketik PIN {picked}</p>
+          <p className="mt-3 mb-4 text-center font-clock text-3xl tracking-[0.35em] text-foreground">
+            {pin.replace(/./g, "•") || "—"}
+          </p>
           <div className="grid grid-cols-3 gap-2">
             {["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "hapus"].map((k) =>
               k === "" ? (
@@ -186,7 +203,7 @@ export function Absen({
                 <button
                   key={k}
                   type="button"
-                  className="min-h-16 rounded-2xl bg-card text-2xl"
+                  className="min-h-16 rounded-2xl bg-[#1b2420] text-2xl"
                   onClick={() => {
                     setPin((p) => (k === "hapus" ? p.slice(0, -1) : p.length < 4 ? p + k : p));
                     setMsg(null);
@@ -204,42 +221,38 @@ export function Absen({
           >
             Lanjut ke foto
           </button>
-        </>
-      ) : null}
-
-      {photo ? (
-        <section className="mt-6">
-          <p className="text-lg font-medium">3. Foto tersimpan</p>
-          <img src={photo} alt="" className="mt-2 h-40 w-full rounded-2xl object-cover" />
-          <button type="button" className="mt-2 text-primary" onClick={() => setCam(true)}>
-            Ambil ulang
+          <button type="button" className="mt-3 w-full text-muted-foreground" onClick={() => resetFlow()}>
+            Ganti nama
           </button>
         </section>
       ) : null}
 
-      {step >= 4 ? (
-        <section className="mt-6 rounded-2xl bg-card p-4">
-          <div className="flex items-start gap-3">
-            <span className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-primary/15 text-primary">
-              <MapPin size={20} />
-            </span>
-            <div>
-              <p className="text-lg font-medium">4. Lokasi GPS</p>
-              <p className="text-sm text-muted-foreground">Radius pos {POS_RADIUS_M} meter</p>
-            </div>
-          </div>
-          <p className={`mt-3 inline-flex rounded-full px-3 py-1.5 text-sm font-medium ${gpsTone}`}>{gpsLabel}</p>
-          <p className="mt-3 text-foreground/90">
-            {settings.testMode
-              ? "Mode uji aktif. Pengecekan jarak dilewati."
-              : geo
-                ? `Jarak ke pos ${formatDistance(dist ?? 0)}. Titik pos ${POS_LAT}, ${POS_LNG}.`
-                : "Aktifkan izin lokasi HP untuk menghitung jarak ke pos."}
-          </p>
-          {geo ? (
-            <p className="mt-1 font-mono text-sm text-muted-foreground">
-              Posisi Anda {geo.lat.toFixed(6)}, {geo.lng.toFixed(6)}
-            </p>
+      {step === 3 && picked ? (
+        <section className="mt-5 rounded-[28px] bg-[#141c18] p-5">
+          <p className="text-lg font-medium">3. Ambil foto {picked}</p>
+          <p className="mt-1 text-muted-foreground">Kamera HP saja. Tidak bisa pilih dari galeri.</p>
+          {photo ? <img src={photo} alt="" className="mt-3 h-44 w-full rounded-2xl object-cover" /> : null}
+          <button
+            type="button"
+            className="mt-4 h-14 w-full rounded-2xl bg-primary text-lg font-medium text-primary-foreground"
+            onClick={() => setCam(true)}
+          >
+            {photo ? "Ambil ulang" : "Buka kamera"}
+          </button>
+          {photo ? (
+            <button type="button" className="mt-3 h-12 w-full rounded-2xl bg-[#1b2420]" onClick={() => setStep(4)}>
+              Lanjut ke lokasi
+            </button>
+          ) : null}
+        </section>
+      ) : null}
+
+      {step === 4 ? (
+        <section className="mt-5">
+          <p className="px-1 text-lg font-medium">4. Lokasi {picked}</p>
+          <GpsRadar geo={settings.testMode ? geo : geo} />
+          {settings.testMode ? (
+            <p className="mt-2 text-sm text-amber">Mode uji · jarak dianggap di pos.</p>
           ) : null}
           <button
             type="button"
@@ -252,7 +265,7 @@ export function Absen({
       ) : null}
 
       {msg ? <p className="mt-3 text-base text-[#c97870]">{msg}</p> : null}
-      <button type="button" className="mt-6 text-primary" onClick={() => onPage("laporan")}>
+      <button type="button" className="mt-6 mb-3 w-full text-center text-primary" onClick={() => onPage("laporan")}>
         Lihat siapa yang sudah absen
       </button>
 
@@ -262,7 +275,10 @@ export function Absen({
           mode={mode}
           stamp={`${win.hari} ${stamp}`}
           onCapture={afterPhoto}
-          onCancel={() => setCam(false)}
+          onCancel={() => {
+            setCam(false);
+            if (!photo) setStep(3);
+          }}
         />
       ) : null}
     </>
