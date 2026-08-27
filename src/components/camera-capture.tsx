@@ -10,8 +10,30 @@ export type CaptureResult = {
   mediaId?: string;
 };
 
-function stampLabel(mode: AbsenMode, kind: "foto" | "video") {
-  return mediaTitle(mode, kind).toUpperCase();
+function badgeText(mode: AbsenMode) {
+  if (mode === "masuk") return "MASUK";
+  if (mode === "selesai") return "SELESAI";
+  if (mode === "kampung") return "FOTO KAMPUNG";
+  return "FOTO KEJADIAN";
+}
+
+function drawRoundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  const radius = Math.min(r, h / 2, w / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+  ctx.fill();
 }
 
 async function stampPhoto(file: File, officer: string, mode: AbsenMode, stamp: string) {
@@ -22,20 +44,48 @@ async function stampPhoto(file: File, officer: string, mode: AbsenMode, stamp: s
   const ctx = canvas.getContext("2d");
   if (!ctx) return URL.createObjectURL(file);
   ctx.drawImage(raw, 0, 0);
-  const h = Math.max(90, canvas.height * 0.16);
-  const g = ctx.createLinearGradient(0, canvas.height - h, 0, canvas.height);
+
+  const w = canvas.width;
+  const h = canvas.height;
+  const pad = Math.round(w * 0.035);
+  const nameSize = Math.max(28, Math.round(w * 0.042));
+  const metaSize = Math.max(20, Math.round(w * 0.028));
+  const badgeSize = Math.max(18, Math.round(w * 0.026));
+  const barH = Math.max(140, Math.round(h * 0.2));
+
+  const g = ctx.createLinearGradient(0, h - barH, 0, h);
   g.addColorStop(0, "rgba(0,0,0,0)");
-  g.addColorStop(0.35, "rgba(0,0,0,0.55)");
-  g.addColorStop(1, "rgba(0,0,0,0.82)");
+  g.addColorStop(0.28, "rgba(0,0,0,0.45)");
+  g.addColorStop(1, "rgba(0,0,0,0.88)");
   ctx.fillStyle = g;
-  ctx.fillRect(0, canvas.height - h, canvas.width, h);
-  ctx.fillStyle = "#ece8df";
-  ctx.font = `600 ${Math.round(canvas.width * 0.045)}px sans-serif`;
-  ctx.fillText(officer, 24, canvas.height - h + 38);
-  ctx.font = `500 ${Math.round(canvas.width * 0.032)}px sans-serif`;
-  ctx.fillText(`${stampLabel(mode, "foto")}  ·  ${stamp}`, 24, canvas.height - h + 68);
-  ctx.fillText(DESA, 24, canvas.height - h + 96);
-  return canvas.toDataURL("image/jpeg", 0.82);
+  ctx.fillRect(0, h - barH, w, barH);
+
+  const nameY = h - barH + Math.round(barH * 0.38);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `700 ${nameSize}px sans-serif`;
+  ctx.fillText(officer, pad, nameY);
+
+  const label = badgeText(mode);
+  ctx.font = `700 ${badgeSize}px sans-serif`;
+  const labelW = ctx.measureText(label).width;
+  const badgeH = badgeSize + Math.round(w * 0.022);
+  const badgeW = labelW + Math.round(w * 0.03);
+  const badgeY = nameY + Math.round(w * 0.018);
+  const isAbsen = mode === "masuk" || mode === "selesai";
+  ctx.fillStyle = isAbsen ? "#c62828" : "#1b3a2c";
+  drawRoundRect(ctx, pad, badgeY, badgeW, badgeH, badgeH / 2);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(label, pad + Math.round(w * 0.015), badgeY + badgeH * 0.72);
+
+  ctx.font = `500 ${metaSize}px sans-serif`;
+  ctx.fillStyle = "#e8efe9";
+  ctx.fillText(stamp, pad + badgeW + Math.round(w * 0.02), badgeY + badgeH * 0.7);
+
+  ctx.font = `500 ${Math.max(16, Math.round(w * 0.024))}px sans-serif`;
+  ctx.fillStyle = "#c5cdc6";
+  ctx.fillText(DESA, pad, h - Math.round(pad * 0.7));
+
+  return canvas.toDataURL("image/jpeg", 0.84);
 }
 
 export function CameraCapture({
