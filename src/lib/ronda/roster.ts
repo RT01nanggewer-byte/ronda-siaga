@@ -1,4 +1,6 @@
-export const ROSTER: Record<number, { name: string; pin: string }[]> = {
+export type Officer = { name: string; pin: string };
+
+export const ROSTER: Record<number, Officer[]> = {
   0: [
     { name: "Praya Sasmita", pin: "1011" },
     { name: "Nana Masna", pin: "1012" },
@@ -57,3 +59,11 @@ export const ROSTER: Record<number, { name: string; pin: string }[]> = {
     { name: "Cecep", pin: "7017" },
   ],
 };
+
+export function allOfficers() {
+  const map = new Map<string, Officer>();
+  for (const list of Object.values(ROSTER)) {
+    for (const o of list) map.set(o.name, o);
+  }
+  return [...map.values()];
+}
