@@ -3,7 +3,6 @@ import { CameraCapture, type CaptureResult } from "../components/camera-capture"
 import { GpsRadar } from "../components/gps-radar";
 import { POS_RADIUS_M } from "../lib/ronda/config";
 import { isInsidePos } from "../lib/ronda/geo";
-import { mediaTitle } from "../lib/ronda/labels";
 import { ROSTER } from "../lib/ronda/roster";
 import { type AbsenMode, useRonda } from "../lib/ronda/store";
 import { getShiftWindow, pad2 } from "../lib/ronda/time";
@@ -181,9 +180,7 @@ export function Absen({
       {step === 1 ? (
         <section className="mt-5 rounded-[28px] bg-[#141c18] p-5">
           <p className="text-lg font-medium">1. Pilih nama Anda</p>
-          <p className="mt-1 text-muted-foreground">
-            Nama hijau jaga malam {win.hari}. Hanya mereka yang boleh absen.
-          </p>
+          <p className="mt-1 text-muted-foreground">Nama hijau jaga malam {win.hari}. Hanya mereka yang boleh absen.</p>
           <div className="mt-4 grid grid-cols-2 gap-2">
             {duty.map((m) => (
               <button
@@ -225,11 +222,7 @@ export function Absen({
               ),
             )}
           </div>
-          <button
-            type="button"
-            className="mt-4 h-14 w-full rounded-2xl bg-primary text-lg font-medium text-primary-foreground"
-            onClick={checkPin}
-          >
+          <button type="button" className="mt-4 h-14 w-full rounded-2xl bg-primary text-lg font-medium text-primary-foreground" onClick={checkPin}>
             Lanjut ke kamera
           </button>
           <button type="button" className="mt-3 w-full text-muted-foreground" onClick={() => resetFlow()}>
@@ -253,11 +246,7 @@ export function Absen({
           ) : media ? (
             <img src={media.src} alt="" className="mt-3 h-44 w-full rounded-2xl object-cover" />
           ) : null}
-          <button
-            type="button"
-            className="mt-4 h-14 w-full rounded-2xl bg-primary text-lg font-medium text-primary-foreground"
-            onClick={() => setCam(true)}
-          >
+          <button type="button" className="mt-4 h-14 w-full rounded-2xl bg-primary text-lg font-medium text-primary-foreground" onClick={() => setCam(true)}>
             {media ? "Ambil ulang" : "Buka kamera HP"}
           </button>
           {media ? (
@@ -273,11 +262,7 @@ export function Absen({
           <p className="px-1 text-lg font-medium">4. Lokasi {picked}</p>
           <GpsRadar geo={geo} />
           {settings.testMode ? <p className="mt-2 text-sm text-amber">Mode uji · jarak dianggap di pos.</p> : null}
-          <button
-            type="button"
-            className="mt-4 h-16 w-full rounded-2xl bg-primary text-lg font-semibold text-primary-foreground"
-            onClick={submit}
-          >
+          <button type="button" className="mt-4 h-16 w-full rounded-2xl bg-primary text-lg font-semibold text-primary-foreground" onClick={submit}>
             {sendLabel}
           </button>
         </section>
