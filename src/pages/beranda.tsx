@@ -35,7 +35,7 @@ export function Beranda({
     if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
     try {
       new Notification("Jadwal Ronda Berganti", {
-        body: `Sekarang giliran petugas ${win.hari}. Silakan cek daftar yang bertugas malam ini.`,
+        body: `Sekarang giliran petugas ${win.hari}. Berganti setiap pukul 18.00 WIB, bukan jam 00.00.`,
       });
     } catch {
       /* ignore */
@@ -73,10 +73,10 @@ export function Beranda({
             <div>
               <p className="text-[1.35rem] font-medium leading-tight">Jadwal Ronda Berganti</p>
               <p className="mt-2 text-[1.05rem] leading-snug text-foreground/90">
-                Sekarang giliran petugas {win.hari}. Silakan cek daftar yang bertugas malam ini.
+                Sekarang giliran petugas {win.hari}. {win.rangeLabel}.
               </p>
               <p className="mt-3 text-[0.98rem] leading-snug text-muted-foreground">
-                Daftar petugas berganti setiap hari pukul 18.00 WIB.
+                Pergantian hanya pukul 18.00 WIB, bukan tengah malam.
               </p>
             </div>
             <button
@@ -129,7 +129,8 @@ export function Beranda({
           YANG JAGA MALAM INI
         </p>
         <p className="mt-2 font-clock text-[2rem]">{win.hari}</p>
-        <p className="text-sm text-muted-foreground">Berganti otomatis pukul 18.00 WIB.</p>
+        <p className="text-sm text-muted-foreground">{win.rangeLabel}</p>
+        <p className="mt-1 text-sm text-primary">{win.nextChangeLabel}</p>
         <ul className="mt-4 flex flex-col gap-2">
           {duty.map((m) => (
             <li key={m.name} className="rounded-2xl bg-primary/12 px-4 py-3 text-lg font-medium text-primary">
@@ -170,7 +171,7 @@ export function Beranda({
       <section className="mt-8">
         <h2 className="font-clock text-[2rem]">Sudah absen malam ini?</h2>
         <p className="mt-1 text-muted-foreground">
-          {tonight.length} dari {duty.length} petugas terjadwal sudah absen.
+          {tonight.length} dari {duty.length} petugas {win.hari} sudah absen.
         </p>
         <p className="text-sm text-muted-foreground">Tekan foto untuk memperbesar.</p>
         <ul className="mt-4 flex flex-col gap-2">

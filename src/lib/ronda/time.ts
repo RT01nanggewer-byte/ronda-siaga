@@ -1,6 +1,5 @@
 import { CHECK_IN_START, CHECK_OUT_END, DUTY_ROLLOVER } from "./config";
 
-const WIB = 7 * 60 * 60 * 1000;
 export const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jum'at", "Sabtu"] as const;
 export const BULAN = [
   "Januari",
@@ -17,16 +16,29 @@ export const BULAN = [
   "Desember",
 ] as const;
 
+const TZ = "Asia/Jakarta";
+
 export function getWibParts(date = new Date()) {
-  const v = new Date(date.getTime() + WIB);
-  const year = v.getUTCFullYear();
-  const month = v.getUTCMonth() + 1;
-  const day = v.getUTCDate();
-  const hour = v.getUTCHours();
-  const minute = v.getUTCMinutes();
-  const second = v.getUTCSeconds();
-  const weekday = v.getUTCDay();
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    weekday: "short",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "0";
+  const year = Number(pick("year"));
+  const month = Number(pick("month"));
+  const day = Number(pick("day"));
+  const hour = Number(pick("hour"));
+  const minute = Number(pick("minute"));
+  const second = Number(pick("second"));
   const dateIso = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const weekday = weekdayFromIso(dateIso);
   return { year, month, day, hour, minute, second, weekday, dateIso, hari: HARI[weekday] };
 }
 
@@ -49,23 +61,35 @@ export function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
 
-/** Selasa 18.00–Rabu 17.59 = jadwal Selasa. Absen masuk tetap 22.00. */
+/**
+ * Jadwal ronda TIDAK ganti jam 00.00.
+ * Satu dinas = dari jam 18.00 sampai 18.00 berikutnya.
+ * Contoh: Kamis 18.00 → Jumat 17.59 = petugas Kamis.
+ */
 export function getShiftWindow(now = new Date()) {
   const p = getWibParts(now);
   const minutes = p.hour * 60 + p.minute;
-  const afterRollover = minutes >= DUTY_ROLLOVER.hour * 60 + DUTY_ROLLOVER.minute;
+  const roll = DUTY_ROLLOVER.hour * 60 + DUTY_ROLLOVER.minute;
+  const afterRollover = minutes >= roll;
   const start = CHECK_IN_START.hour * 60 + CHECK_IN_START.minute;
   const endOut = CHECK_OUT_END.hour * 60 + CHECK_OUT_END.minute;
   const shiftDate = afterRollover ? p.dateIso : addDaysIso(p.dateIso, -1);
   const weekday = weekdayFromIso(shiftDate);
+  const nextDate = afterRollover ? addDaysIso(p.dateIso, 1) : p.dateIso;
+  const nextHari = HARI[weekdayFromIso(nextDate)];
   const canCheckIn = minutes >= start;
   const canCheckOut = minutes >= start + 1 || minutes <= endOut;
   const locked = !canCheckIn && minutes > endOut;
   const openInMin = locked ? start - minutes : 0;
+  const minsToNext = afterRollover ? 24 * 60 - minutes + roll : roll - minutes;
   return {
     shiftDate,
     weekday,
     hari: HARI[weekday],
+    nextHari,
+    nextChangeLabel: `Ganti ke ${nextHari} pukul 18.00 WIB`,
+    rangeLabel: `${HARI[weekday]} 18.00 – ${nextHari} 18.00`,
+    minsToNext,
     canCheckIn,
     canCheckOut,
     locked,

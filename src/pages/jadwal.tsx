@@ -9,8 +9,9 @@ export function Jadwal({ testNow }: { testNow: Date }) {
       <p className="text-sm tracking-[0.14em] text-muted-foreground">MINGGU BERJALAN</p>
       <h1 className="mt-1 font-clock text-[2.4rem] leading-none">Jadwal ronda</h1>
       <p className="mt-2 text-muted-foreground">
-        Nama hijau bertugas malam ini. Jadwal berganti otomatis setiap hari pukul 18.00.
+        Nama hijau sedang dinas. Satu dinas dari pukul 18.00 sampai 18.00 esok hari. Tidak ganti jam 00.00.
       </p>
+      <p className="mt-2 text-sm text-primary">{win.rangeLabel}. {win.nextChangeLabel}.</p>
       <div className="mt-5 flex flex-col gap-4">
         {HARI.map((hari, i) => (
           <section
@@ -20,7 +21,7 @@ export function Jadwal({ testNow }: { testNow: Date }) {
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="font-clock text-[1.85rem]">{hari}</h2>
               <span className="text-sm text-muted-foreground">
-                {win.weekday === i ? "Malam ini" : `${(ROSTER[i] ?? []).length} orang`}
+                {win.weekday === i ? "Dinas sekarang" : `${(ROSTER[i] ?? []).length} orang`}
               </span>
             </div>
             <ul className="mt-3 flex flex-col gap-1">
