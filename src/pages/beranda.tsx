@@ -1,8 +1,8 @@
-import { Bell, Lock, MapPin } from "lucide-react";
+import { Bell, Lock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { GpsRadar } from "../components/gps-radar";
 import { PhotoViewer } from "../components/photo-viewer";
-import { APP_NAME, DESA, POS_LAT, POS_LNG, POS_RADIUS_M } from "../lib/ronda/config";
-import { formatDistance, haversineMeters, isInsidePos } from "../lib/ronda/geo";
+import { APP_NAME, DESA } from "../lib/ronda/config";
 import { ROSTER } from "../lib/ronda/roster";
 import { useRonda } from "../lib/ronda/store";
 import { countdownToOpen, formatLongDate, getShiftWindow, getWibParts, pad2 } from "../lib/ronda/time";
@@ -26,8 +26,6 @@ export function Beranda({
   const showNotice = settings.dismissedShiftDate !== win.shiftDate;
   const [viewer, setViewer] = useState<{ src: string; caption: string } | null>(null);
 
-  const inside = geo ? isInsidePos(geo.lat, geo.lng) : false;
-  const dist = geo ? haversineMeters(geo.lat, geo.lng) : null;
   const tonight = attendance.filter((a) => a.shiftDate === win.shiftDate && !a.test);
   const tonightPhotos = photos.filter((p) => p.shiftDate === win.shiftDate);
 
@@ -66,9 +64,6 @@ export function Beranda({
     : win.canCheckIn
       ? "Pos buka · absen masuk 22.00–24.00"
       : "Jam selesai · sampai 05.00";
-
-  const gpsLabel = !geo ? "Menunggu GPS" : inside ? "Sudah di dalam radius pos" : "Di luar radius pos";
-  const gpsTone = !geo ? "bg-[#2a2418] text-amber" : inside ? "bg-primary/15 text-primary" : "bg-[#3a2220] text-[#e8a39c]";
 
   return (
     <>
@@ -170,33 +165,7 @@ export function Beranda({
         Coba alur absen (uji coba)
       </button>
 
-      <section className="mt-6 rounded-[28px] bg-card p-5">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/15 text-primary">
-            <MapPin size={22} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-muted-foreground">Status GPS poskamling</p>
-            <p className="text-2xl font-medium">Radius {POS_RADIUS_M} meter</p>
-          </div>
-        </div>
-        <p className={`mt-4 inline-flex rounded-full px-3.5 py-1.5 text-sm font-medium ${gpsTone}`}>{gpsLabel}</p>
-        <p className="mt-3 text-base text-foreground/90">
-          {geo
-            ? inside
-              ? `Jarak ke pos ${formatDistance(dist ?? 0)} — absen diizinkan.`
-              : `Jarak ke pos ${formatDistance(dist ?? 0)} — mendekat sampai ${POS_RADIUS_M} m.`
-            : "Aktifkan izin lokasi HP agar jarak ke pos bisa dihitung."}
-        </p>
-        {geo ? (
-          <p className="mt-2 font-mono text-sm text-muted-foreground">
-            Posisi Anda {geo.lat.toFixed(6)}, {geo.lng.toFixed(6)}
-          </p>
-        ) : null}
-        <p className="mt-3 text-sm leading-snug text-muted-foreground">
-          Titik pos: {POS_LAT}, {POS_LNG}. Absen masuk dan selesai hanya dalam {POS_RADIUS_M} meter.
-        </p>
-      </section>
+      <GpsRadar geo={geo} />
 
       <section className="mt-8">
         <h2 className="font-clock text-[2rem]">Sudah absen malam ini?</h2>
