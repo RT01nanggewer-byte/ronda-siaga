@@ -2,7 +2,7 @@ import { CalendarDays, Camera, House, Menu as MenuIcon, Shield } from "lucide-re
 import { useEffect, useMemo, useState } from "react";
 import { POS_LAT, POS_LNG, TEST_CLOCK } from "./lib/ronda/config";
 import { useRonda } from "./lib/ronda/store";
-import { getWibParts } from "./lib/ronda/time";
+import { getShiftWindow } from "./lib/ronda/time";
 import { Absen } from "./pages/absen";
 import { Beranda } from "./pages/beranda";
 import { Foto } from "./pages/foto";
@@ -54,12 +54,13 @@ export function App() {
     return () => navigator.geolocation.clearWatch(watch);
   }, []);
 
+  const realShift = useMemo(() => getShiftWindow(now), [now]);
+
   const testNow = useMemo(() => {
     if (!testMode) return now;
-    const p = getWibParts(now);
-    const utc = Date.UTC(p.year, p.month - 1, p.day, TEST_CLOCK.hour - 7, TEST_CLOCK.minute, p.second);
-    return new Date(utc);
-  }, [now, testMode]);
+    const [y, m, d] = realShift.shiftDate.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d, TEST_CLOCK.hour - 7, TEST_CLOCK.minute, now.getSeconds()));
+  }, [now, testMode, realShift.shiftDate]);
 
   const effectiveGeo = testMode ? { lat: POS_LAT, lng: POS_LNG } : geo;
 
@@ -74,7 +75,7 @@ export function App() {
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col bg-background px-4 pt-5 safe-bottom">
       {testMode ? (
         <p className="mb-3 rounded-2xl bg-[#2a2418] px-3 py-2 text-center text-sm text-amber">
-          Mode uji coba aktif · jam 22.15 · GPS di pos
+          Mode uji coba · jam 22.15 · dinas {realShift.hari} · GPS di pos
         </p>
       ) : null}
 
