@@ -3,13 +3,18 @@ import { CameraCapture, type CaptureResult } from "../components/camera-capture"
 import { GpsRadar } from "../components/gps-radar";
 import { POS_RADIUS_M } from "../lib/ronda/config";
 import { isInsidePos } from "../lib/ronda/geo";
-import { mediaTitle, modeTabLabel } from "../lib/ronda/labels";
+import { mediaTitle } from "../lib/ronda/labels";
 import { ROSTER } from "../lib/ronda/roster";
 import { type AbsenMode, useRonda } from "../lib/ronda/store";
 import { getShiftWindow, pad2 } from "../lib/ronda/time";
 import type { Page } from "../app";
 
-const MODES: AbsenMode[] = ["masuk", "selesai", "kampung", "kejadian"];
+const MODES: { id: AbsenMode; label: string }[] = [
+  { id: "masuk", label: "Masuk" },
+  { id: "selesai", label: "Selesai" },
+  { id: "kampung", label: "Kampung" },
+  { id: "kejadian", label: "Kejadian" },
+];
 
 export function Absen({
   testNow,
@@ -34,7 +39,6 @@ export function Absen({
   const officer = duty.find((d) => d.name === picked);
   const stamp = `${pad2(win.parts.hour)}.${pad2(win.parts.minute)} WIB`;
   const inside = settings.testMode || (geo ? isInsidePos(geo.lat, geo.lng) : false);
-  const heading = mediaTitle(mode, media?.kind);
 
   function resetFlow() {
     setPicked(null);
@@ -110,19 +114,28 @@ export function Absen({
     });
     setMsg(null);
     if (settings.testMode) setTestMode(false);
-    onPage(mode === "kampung" || mode === "kejadian" ? "foto" : "beranda");
+    onPage(media.kind === "video" || mode === "kampung" || mode === "kejadian" ? "foto" : "beranda");
   }
+
+  const sendLabel =
+    mode === "kampung"
+      ? "Kirim foto kampung"
+      : mode === "kejadian"
+        ? media?.kind === "video"
+          ? "Kirim video kejadian"
+          : "Kirim foto kejadian"
+        : `Kirim absen ${mode}`;
 
   return (
     <>
       <p className="text-[0.78rem] font-medium tracking-[0.16em] text-primary/80">IKUTI 4 LANGKAH</p>
-      <h1 className="mt-1 font-clock text-[2.2rem] leading-none">{heading}</h1>
+      <h1 className="mt-1 font-clock text-[2.45rem] leading-none">Absen {mode}</h1>
       <p className="mt-2 text-[1.05rem] leading-snug text-muted-foreground">
         {win.hari} · giliran malam ini (berganti pukul 18.00)
       </p>
 
       <ol className="mt-5 grid grid-cols-4 gap-2 text-center text-sm">
-        {["Nama", "PIN", "Kamera", "Kirim"].map((label, i) => {
+        {["Nama", "PIN", "Foto", "Lokasi"].map((label, i) => {
           const n = (i + 1) as 1 | 2 | 3 | 4;
           const active = step === n;
           const done = step > n;
@@ -149,19 +162,18 @@ export function Absen({
         })}
       </ol>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div className="mt-4 grid grid-cols-4 gap-2">
         {MODES.map((m) => (
           <button
-            key={m}
+            key={m.id}
             type="button"
             onClick={() => {
-              setMode(m);
-              setMedia(null);
+              setMode(m.id);
               setMsg(null);
             }}
-            className={`rounded-2xl px-3 py-3 text-left text-[0.95rem] ${mode === m ? "bg-primary text-primary-foreground" : "bg-[#141c18] text-muted-foreground"}`}
+            className={`rounded-2xl px-1 py-2.5 text-sm ${mode === m.id ? "bg-primary text-primary-foreground" : "bg-[#141c18] text-muted-foreground"}`}
           >
-            {modeTabLabel(m)}
+            {m.label}
           </button>
         ))}
       </div>
@@ -170,7 +182,7 @@ export function Absen({
         <section className="mt-5 rounded-[28px] bg-[#141c18] p-5">
           <p className="text-lg font-medium">1. Pilih nama Anda</p>
           <p className="mt-1 text-muted-foreground">
-            Nama hijau jaga malam {win.hari}. Hanya mereka yang boleh mengirim {heading.toLowerCase()}.
+            Nama hijau jaga malam {win.hari}. Hanya mereka yang boleh absen.
           </p>
           <div className="mt-4 grid grid-cols-2 gap-2">
             {duty.map((m) => (
@@ -228,12 +240,12 @@ export function Absen({
 
       {step === 3 && picked ? (
         <section className="mt-5 rounded-[28px] bg-[#141c18] p-5">
-          <p className="text-lg font-medium">3. {heading}</p>
+          <p className="text-lg font-medium">3. Kamera HP {picked}</p>
           <p className="mt-1 text-muted-foreground">
             {mode === "kejadian"
-              ? "Ambil foto atau rekam video. Hasilnya otomatis jadi foto kejadian atau video kejadian."
+              ? "Ambil foto atau rekam video. Hasilnya jadi foto kejadian atau video kejadian."
               : mode === "kampung"
-                ? "Ambil foto keliling kampung memakai kamera bawaan HP."
+                ? "Ambil foto kampung memakai kamera bawaan HP."
                 : "Foto memakai kamera bawaan HP. Ganti depan/belakang di aplikasi kamera."}
           </p>
           {media?.kind === "video" ? (
@@ -250,7 +262,7 @@ export function Absen({
           </button>
           {media ? (
             <button type="button" className="mt-3 h-12 w-full rounded-2xl bg-[#1b2420]" onClick={() => setStep(4)}>
-              Lanjut kirim
+              Lanjut ke lokasi
             </button>
           ) : null}
         </section>
@@ -258,19 +270,15 @@ export function Absen({
 
       {step === 4 ? (
         <section className="mt-5">
-          <p className="px-1 text-lg font-medium">4. Kirim {heading}</p>
-          {mode === "masuk" || mode === "selesai" ? <GpsRadar geo={geo} /> : (
-            <p className="mt-3 rounded-2xl bg-[#141c18] p-4 text-muted-foreground">
-              {heading} tidak wajib di dalam radius 10 meter.
-            </p>
-          )}
+          <p className="px-1 text-lg font-medium">4. Lokasi {picked}</p>
+          <GpsRadar geo={geo} />
           {settings.testMode ? <p className="mt-2 text-sm text-amber">Mode uji · jarak dianggap di pos.</p> : null}
           <button
             type="button"
             className="mt-4 h-16 w-full rounded-2xl bg-primary text-lg font-semibold text-primary-foreground"
             onClick={submit}
           >
-            Kirim {heading.toLowerCase()}
+            {sendLabel}
           </button>
         </section>
       ) : null}
