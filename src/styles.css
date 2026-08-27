@@ -2,6 +2,7 @@
 
 @theme {
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-clock: "Fraunces", "Times New Roman", serif;
   --color-background: #0e1210;
   --color-foreground: #ece8df;
   --color-card: #171c19;
@@ -10,10 +11,35 @@
   --color-primary: #9bb896;
   --color-primary-foreground: #0e1210;
   --color-border: #2a332e;
+  --color-amber: #c4a574;
+  --color-notice: #141c18;
 }
 
 @layer base {
-  html { -webkit-font-smoothing: antialiased; font-size: 17px; }
-  body { background: var(--color-background); color: var(--color-foreground); font-family: var(--font-sans); margin: 0; }
-  button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
+  html {
+    -webkit-font-smoothing: antialiased;
+    font-size: 17px;
+  }
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    margin: 0;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+.clock-face {
+  font-family: var(--font-clock);
+  font-weight: 500;
+  font-variation-settings: "SOFT" 40, "WONK" 1;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+}
+
+.safe-bottom {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
 }

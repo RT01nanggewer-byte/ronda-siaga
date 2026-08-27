@@ -1,0 +1,10 @@
+{
+  "name": "Ronda Siaga",
+  "short_name": "Ronda Siaga",
+  "description": "Absensi poskamling RT 01 RW 02 Desa Mulyasari",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0e1210",
+  "theme_color": "#0e1210",
+  "lang": "id"
+}
