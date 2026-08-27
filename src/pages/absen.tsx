@@ -26,7 +26,7 @@ export function Absen({
 }) {
   const win = useMemo(() => getShiftWindow(testNow), [testNow]);
   const duty = ROSTER[win.weekday] ?? [];
-  const { settings, attendance, upsertAttendance, addPhoto, setTestMode } = useRonda();
+  const { settings, attendance, upsertAttendance, addPhoto } = useRonda();
   const [mode, setMode] = useState<AbsenMode>("masuk");
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [picked, setPicked] = useState<string | null>(null);
@@ -68,21 +68,23 @@ export function Absen({
     setMedia(result);
     setCam(false);
     setStep(4);
+    setMsg(null);
   }
 
   function submit() {
-    if (!officer || !media) return;
+    if (!officer) return setMsg("Pilih nama petugas dulu.");
+    if (!media) return setMsg("Ambil foto atau video dulu.");
     if (mode === "masuk" && !settings.testMode && !win.canCheckIn) {
-      return setMsg("Absen masuk hanya 22.00–24.00 WIB. Aktifkan mode uji di Menu jika mencoba siang hari.");
+      return setMsg("Absen masuk hanya 22.00–24.00 WIB. Aktifkan mode uji jika mencoba di luar jam.");
     }
     if (mode === "selesai" && !settings.testMode && !win.canCheckOut) {
       return setMsg("Absen selesai hanya 22.01–05.00 WIB.");
     }
     if ((mode === "masuk" || mode === "selesai") && !inside) {
-      return setMsg(`Harus dalam ${POS_RADIUS_M} m dari poskamling.`);
+      return setMsg(`Harus dalam ${POS_RADIUS_M} m dari poskamling.");
     }
     const existing = attendance.find((a) => a.name === officer.name && a.shiftDate === win.shiftDate);
-    if (mode === "masuk" && existing?.masuk && !existing.test) {
+    if (mode === "masuk" && existing?.masuk && !existing.test && !settings.testMode) {
       return setMsg("Sudah absen masuk malam ini.");
     }
     const id = `${officer.name}-${win.shiftDate}`;
@@ -112,8 +114,7 @@ export function Absen({
       mediaId: media.mediaId,
     });
     setMsg(null);
-    if (settings.testMode) setTestMode(false);
-    onPage(media.kind === "video" || mode === "kampung" || mode === "kejadian" ? "foto" : "beranda");
+    onPage(mode === "kampung" || mode === "kejadian" || media.kind === "video" ? "foto" : "beranda");
   }
 
   const sendLabel =
@@ -126,7 +127,7 @@ export function Absen({
         : `Kirim absen ${mode}`;
 
   return (
-    <>
+    <div className="pb-28">
       <p className="text-[0.78rem] font-medium tracking-[0.16em] text-primary/80">IKUTI 4 LANGKAH</p>
       <h1 className="mt-1 font-clock text-[2.45rem] leading-none">Absen {mode}</h1>
       <p className="mt-2 text-[1.05rem] leading-snug text-muted-foreground">
@@ -234,13 +235,6 @@ export function Absen({
       {step === 3 && picked ? (
         <section className="mt-5 rounded-[28px] bg-[#141c18] p-5">
           <p className="text-lg font-medium">3. Kamera HP {picked}</p>
-          <p className="mt-1 text-muted-foreground">
-            {mode === "kejadian"
-              ? "Ambil foto atau rekam video. Hasilnya jadi foto kejadian atau video kejadian."
-              : mode === "kampung"
-                ? "Ambil foto kampung memakai kamera bawaan HP."
-                : "Foto memakai kamera bawaan HP. Ganti depan/belakang di aplikasi kamera."}
-          </p>
           {media?.kind === "video" ? (
             <video src={media.src} className="mt-3 h-44 w-full rounded-2xl object-cover" controls playsInline />
           ) : media ? (
@@ -262,14 +256,18 @@ export function Absen({
           <p className="px-1 text-lg font-medium">4. Lokasi {picked}</p>
           <GpsRadar geo={geo} />
           {settings.testMode ? <p className="mt-2 text-sm text-amber">Mode uji · jarak dianggap di pos.</p> : null}
-          <button type="button" className="mt-4 h-16 w-full rounded-2xl bg-primary text-lg font-semibold text-primary-foreground" onClick={submit}>
+          <button
+            type="button"
+            className="relative z-30 mt-4 h-16 w-full rounded-2xl bg-primary text-lg font-semibold text-primary-foreground"
+            onClick={submit}
+          >
             {sendLabel}
           </button>
         </section>
       ) : null}
 
       {msg ? <p className="mt-3 text-base text-[#c97870]">{msg}</p> : null}
-      <button type="button" className="mt-6 mb-3 w-full text-center text-primary" onClick={() => onPage("laporan")}>
+      <button type="button" className="mt-6 w-full text-center text-primary" onClick={() => onPage("laporan")}>
         Lihat siapa yang sudah absen
       </button>
 
@@ -281,10 +279,10 @@ export function Absen({
           onCapture={afterCapture}
           onCancel={() => {
             setCam(false);
-            if (!media) setStep(3);
+            setStep(3);
           }}
         />
       ) : null}
-    </>
+    </div>
   );
 }

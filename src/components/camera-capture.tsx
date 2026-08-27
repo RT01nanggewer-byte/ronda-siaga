@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { DESA } from "../lib/ronda/config";
 import { mediaTitle } from "../lib/ronda/labels";
 import { saveMediaBlob } from "../lib/ronda/media-db";
@@ -17,14 +17,7 @@ function badgeText(mode: AbsenMode) {
   return "FOTO KEJADIAN";
 }
 
-function drawRoundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-) {
+function drawRoundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   const radius = Math.min(r, h / 2, w / 2);
   ctx.beginPath();
   ctx.moveTo(x + radius, y);
@@ -36,14 +29,41 @@ function drawRoundRect(
   ctx.fill();
 }
 
+function loadImage(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("gambar"));
+    };
+    img.src = url;
+  });
+}
+
 async function stampPhoto(file: File, officer: string, mode: AbsenMode, stamp: string) {
-  const raw = await createImageBitmap(file);
+  let width = 0;
+  let height = 0;
+  let draw: (ctx: CanvasRenderingContext2D) => void;
+  try {
+    const raw = await createImageBitmap(file);
+    width = raw.width;
+    height = raw.height;
+    draw = (ctx) => ctx.drawImage(raw, 0, 0);
+  } catch {
+    const img = await loadImage(file);
+    width = img.naturalWidth || img.width;
+    height = img.naturalHeight || img.height;
+    draw = (ctx) => ctx.drawImage(img, 0, 0);
+  }
+  if (!width || !height) return URL.createObjectURL(file);
   const canvas = document.createElement("canvas");
-  canvas.width = raw.width;
-  canvas.height = raw.height;
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) return URL.createObjectURL(file);
-  ctx.drawImage(raw, 0, 0);
+  draw(ctx);
 
   const w = canvas.width;
   const h = canvas.height;
@@ -101,8 +121,6 @@ export function CameraCapture({
   onCapture: (result: CaptureResult) => void;
   onCancel: () => void;
 }) {
-  const photoRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const allowVideo = mode === "kejadian";
@@ -110,12 +128,12 @@ export function CameraCapture({
   async function onPhoto(file?: File) {
     if (!file) return;
     setBusy(true);
+    setErr(null);
     try {
       const src = await stampPhoto(file, officer, mode, stamp);
       onCapture({ src, kind: "foto" });
     } catch {
       setErr("Foto tidak bisa diproses. Coba lagi.");
-    } finally {
       setBusy(false);
     }
   }
@@ -123,20 +141,19 @@ export function CameraCapture({
   async function onVideo(file?: File) {
     if (!file) return;
     setBusy(true);
+    setErr(null);
     try {
       const mediaId = `vid-${Date.now()}`;
       await saveMediaBlob(mediaId, file);
-      const src = URL.createObjectURL(file);
-      onCapture({ src, kind: "video", mediaId });
+      onCapture({ src: URL.createObjectURL(file), kind: "video", mediaId });
     } catch {
       setErr("Video tidak bisa disimpan. Coba rekam lebih pendek.");
-    } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex flex-col bg-[#0b0f0d] px-5 pt-8 pb-[max(1.2rem,env(safe-area-inset-bottom))]">
+    <div className="fixed inset-0 z-[90] flex flex-col bg-[#0b0f0d] px-5 pt-8 pb-8">
       <p className="text-sm tracking-[0.14em] text-white/50">KAMERA BAWAAN HP</p>
       <h2 className="mt-1 font-clock text-[2.1rem] leading-none text-white">{officer}</h2>
       <p className="mt-2 text-white/70">
@@ -145,45 +162,43 @@ export function CameraCapture({
           : `${mediaTitle(mode)} · ${stamp}`}
       </p>
 
-      <input
-        ref={photoRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => void onPhoto(e.target.files?.[0])}
-      />
-      <input
-        ref={videoRef}
-        type="file"
-        accept="video/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => void onVideo(e.target.files?.[0])}
-      />
-
       <div className="mt-auto flex flex-col gap-3">
         {err ? <p className="text-center text-[#e08b84]">{err}</p> : null}
         {busy ? <p className="text-center text-white/70">Menyimpan...</p> : null}
-        <button
-          type="button"
-          className="h-16 w-full rounded-2xl bg-primary text-lg font-semibold text-primary-foreground"
-          onClick={() => photoRef.current?.click()}
-          disabled={busy}
-        >
+
+        <label className="flex h-16 w-full cursor-pointer items-center justify-center rounded-2xl bg-primary text-lg font-semibold text-primary-foreground">
           {mode === "kampung" ? "Ambil foto kampung" : mode === "kejadian" ? "Ambil foto kejadian" : "Ambil foto kamera HP"}
-        </button>
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              void onPhoto(file);
+            }}
+          />
+        </label>
+
         {allowVideo ? (
-          <button
-            type="button"
-            className="h-16 w-full rounded-2xl bg-[#3a2220] text-lg font-semibold text-[#f3c2bc]"
-            onClick={() => videoRef.current?.click()}
-            disabled={busy}
-          >
+          <label className="flex h-16 w-full cursor-pointer items-center justify-center rounded-2xl bg-[#3a2220] text-lg font-semibold text-[#f3c2bc]">
             Rekam video kejadian
-          </button>
+            <input
+              type="file"
+              accept="video/*"
+              capture="environment"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                void onVideo(file);
+              }}
+            />
+          </label>
         ) : null}
-        <button type="button" className="h-12 w-full text-white/70" onClick={onCancel} disabled={busy}>
+
+        <button type="button" className="h-12 w-full text-white" onClick={onCancel}>
           Batal
         </button>
       </div>
