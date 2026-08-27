@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PhotoViewer } from "../components/photo-viewer";
 import { useRonda, type AbsenMode } from "../lib/ronda/store";
 import { getShiftWindow } from "../lib/ronda/time";
@@ -14,17 +14,22 @@ const FILTERS: { id: "semua" | AbsenMode; label: string }[] = [
 export function Foto({ testNow }: { testNow: Date }) {
   const win = useMemo(() => getShiftWindow(testNow), [testNow]);
   const photos = useRonda((s) => s.photos);
+  const hydrateVideos = useRonda((s) => s.hydrateVideos);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("semua");
   const [open, setOpen] = useState<string | null>(null);
   const list = photos.filter((p) => (filter === "semua" ? true : p.mode === filter));
   const current = list.find((p) => p.id === open);
 
+  useEffect(() => {
+    void hydrateVideos();
+  }, [hydrateVideos]);
+
   return (
     <>
       <p className="text-sm tracking-[0.14em] text-muted-foreground">GALERI POSKAMLING</p>
-      <h1 className="mt-1 font-clock text-[2.4rem] leading-none">Foto</h1>
+      <h1 className="mt-1 font-clock text-[2.4rem] leading-none">Foto & video</h1>
       <p className="mt-2 text-muted-foreground">
-        Bukti absen, keliling kampung, dan kejadian. Tekan foto untuk memperbesar.
+        Bukti absen, keliling kampung, dan rekaman kejadian. Tekan untuk melihat.
       </p>
       <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
         {FILTERS.map((f) => (
@@ -40,8 +45,7 @@ export function Foto({ testNow }: { testNow: Date }) {
       </div>
       {list.length === 0 ? (
         <section className="mt-8 rounded-[28px] bg-card p-5 text-muted-foreground">
-          Belum ada foto {filter === "semua" ? "" : filter}. Ambil dari halaman Absen, pilih jenis Masuk / Selesai /
-          Kampung / Kejadian.
+          Belum ada foto atau video {filter === "semua" ? "" : filter}. Ambil dari halaman Absen.
           <p className="mt-2 text-sm">Malam {win.hari} · jadwal berganti pukul 18.00 WIB.</p>
         </section>
       ) : (
@@ -53,11 +57,15 @@ export function Foto({ testNow }: { testNow: Date }) {
                 className="w-full overflow-hidden rounded-2xl bg-card text-left"
                 onClick={() => setOpen(p.id)}
               >
-                <img src={p.src} alt="" className="h-36 w-full object-cover" />
+                {p.kind === "video" ? (
+                  <video src={p.src} className="h-36 w-full object-cover" muted playsInline />
+                ) : (
+                  <img src={p.src} alt="" className="h-36 w-full object-cover" />
+                )}
                 <span className="block px-3 py-2">
                   <span className="block truncate font-medium">{p.name}</span>
                   <span className="text-sm capitalize text-muted-foreground">
-                    {p.mode} · {p.at}
+                    {p.kind === "video" ? "Video" : "Foto"} · {p.mode} · {p.at}
                   </span>
                 </span>
               </button>
@@ -68,6 +76,7 @@ export function Foto({ testNow }: { testNow: Date }) {
       {current ? (
         <PhotoViewer
           src={current.src}
+          kind={current.kind === "video" ? "video" : "foto"}
           caption={`${current.name} · ${current.mode} · ${current.at}`}
           onClose={() => setOpen(null)}
         />

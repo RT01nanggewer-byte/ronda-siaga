@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CameraCapture } from "../components/camera-capture";
+import { CameraCapture, type CaptureResult } from "../components/camera-capture";
 import { GpsRadar } from "../components/gps-radar";
 import { POS_RADIUS_M } from "../lib/ronda/config";
 import { isInsidePos } from "../lib/ronda/geo";
@@ -31,7 +31,7 @@ export function Absen({
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [picked, setPicked] = useState<string | null>(null);
   const [pin, setPin] = useState("");
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [media, setMedia] = useState<CaptureResult | null>(null);
   const [cam, setCam] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -39,20 +39,19 @@ export function Absen({
   const stamp = `${pad2(win.parts.hour)}.${pad2(win.parts.minute)} WIB`;
   const inside = settings.testMode || (geo ? isInsidePos(geo.lat, geo.lng) : false);
 
-  function resetFlow(keepMode = true) {
+  function resetFlow() {
     setPicked(null);
     setPin("");
-    setPhoto(null);
+    setMedia(null);
     setCam(false);
     setMsg(null);
     setStep(1);
-    if (!keepMode) setMode("masuk");
   }
 
   function pickName(name: string) {
     setPicked(name);
     setPin("");
-    setPhoto(null);
+    setMedia(null);
     setMsg(null);
     setStep(2);
   }
@@ -65,14 +64,14 @@ export function Absen({
     setCam(true);
   }
 
-  function afterPhoto(dataUrl: string) {
-    setPhoto(dataUrl);
+  function afterCapture(result: CaptureResult) {
+    setMedia(result);
     setCam(false);
     setStep(4);
   }
 
   function submit() {
-    if (!officer || !photo) return;
+    if (!officer || !media) return;
     if (mode === "masuk" && !settings.testMode && !win.canCheckIn) {
       return setMsg("Absen masuk hanya 22.00–24.00 WIB. Aktifkan mode uji di Menu jika mencoba siang hari.");
     }
@@ -95,8 +94,8 @@ export function Absen({
         hari: win.hari,
         masuk: mode === "masuk" ? stamp : existing?.masuk,
         selesai: mode === "selesai" ? stamp : existing?.selesai,
-        photoMasuk: mode === "masuk" ? photo : existing?.photoMasuk,
-        photoSelesai: mode === "selesai" ? photo : existing?.photoSelesai,
+        photoMasuk: mode === "masuk" && media.kind === "foto" ? media.src : existing?.photoMasuk,
+        photoSelesai: mode === "selesai" && media.kind === "foto" ? media.src : existing?.photoSelesai,
         test: settings.testMode,
         poin: 1,
       });
@@ -105,14 +104,16 @@ export function Absen({
       id: `${id}-${mode}-${Date.now()}`,
       name: officer.name,
       mode,
-      src: photo,
+      src: media.src,
       at: stamp,
       shiftDate: win.shiftDate,
       test: settings.testMode,
+      kind: media.kind,
+      mediaId: media.mediaId,
     });
     setMsg(null);
     if (settings.testMode) setTestMode(false);
-    onPage("beranda");
+    onPage(media.kind === "video" ? "foto" : "beranda");
   }
 
   return (
@@ -219,7 +220,7 @@ export function Absen({
             className="mt-4 h-14 w-full rounded-2xl bg-primary text-lg font-medium text-primary-foreground"
             onClick={checkPin}
           >
-            Lanjut ke foto
+            Lanjut ke kamera
           </button>
           <button type="button" className="mt-3 w-full text-muted-foreground" onClick={() => resetFlow()}>
             Ganti nama
@@ -229,17 +230,25 @@ export function Absen({
 
       {step === 3 && picked ? (
         <section className="mt-5 rounded-[28px] bg-[#141c18] p-5">
-          <p className="text-lg font-medium">3. Ambil foto {picked}</p>
-          <p className="mt-1 text-muted-foreground">Kamera HP saja. Tidak bisa pilih dari galeri.</p>
-          {photo ? <img src={photo} alt="" className="mt-3 h-44 w-full rounded-2xl object-cover" /> : null}
+          <p className="text-lg font-medium">3. Kamera HP {picked}</p>
+          <p className="mt-1 text-muted-foreground">
+            {mode === "kejadian" || mode === "kampung"
+              ? "Bisa foto atau rekam video kejadian memakai kamera bawaan HP."
+              : "Foto memakai kamera bawaan HP. Ganti depan/belakang di aplikasi kamera."}
+          </p>
+          {media?.kind === "video" ? (
+            <video src={media.src} className="mt-3 h-44 w-full rounded-2xl object-cover" controls playsInline />
+          ) : media ? (
+            <img src={media.src} alt="" className="mt-3 h-44 w-full rounded-2xl object-cover" />
+          ) : null}
           <button
             type="button"
             className="mt-4 h-14 w-full rounded-2xl bg-primary text-lg font-medium text-primary-foreground"
             onClick={() => setCam(true)}
           >
-            {photo ? "Ambil ulang" : "Buka kamera"}
+            {media ? "Ambil ulang" : "Buka kamera HP"}
           </button>
-          {photo ? (
+          {media ? (
             <button type="button" className="mt-3 h-12 w-full rounded-2xl bg-[#1b2420]" onClick={() => setStep(4)}>
               Lanjut ke lokasi
             </button>
@@ -250,16 +259,14 @@ export function Absen({
       {step === 4 ? (
         <section className="mt-5">
           <p className="px-1 text-lg font-medium">4. Lokasi {picked}</p>
-          <GpsRadar geo={settings.testMode ? geo : geo} />
-          {settings.testMode ? (
-            <p className="mt-2 text-sm text-amber">Mode uji · jarak dianggap di pos.</p>
-          ) : null}
+          <GpsRadar geo={geo} />
+          {settings.testMode ? <p className="mt-2 text-sm text-amber">Mode uji · jarak dianggap di pos.</p> : null}
           <button
             type="button"
             className="mt-4 h-16 w-full rounded-2xl bg-primary text-lg font-semibold text-primary-foreground"
             onClick={submit}
           >
-            Kirim absen {mode}
+            Kirim {media?.kind === "video" ? "video" : "absen"} {mode}
           </button>
         </section>
       ) : null}
@@ -274,10 +281,10 @@ export function Absen({
           officer={officer.name}
           mode={mode}
           stamp={`${win.hari} ${stamp}`}
-          onCapture={afterPhoto}
+          onCapture={afterCapture}
           onCancel={() => {
             setCam(false);
-            if (!photo) setStep(3);
+            if (!media) setStep(3);
           }}
         />
       ) : null}

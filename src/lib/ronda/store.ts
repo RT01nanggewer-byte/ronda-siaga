@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { POS_LAT, POS_LNG, POS_RADIUS_M } from "./config";
+import { loadMediaUrl } from "./media-db";
 import { attendanceToSheetRow, pushRowsToSheet } from "./sheet";
 
 export type AbsenMode = "masuk" | "selesai" | "kampung" | "kejadian";
@@ -13,6 +14,8 @@ export type Photo = {
   at: string;
   shiftDate: string;
   test?: boolean;
+  kind?: "foto" | "video";
+  mediaId?: string;
 };
 
 export type Attendance = {
@@ -50,6 +53,7 @@ type State = {
   setSheetUrl: (v: string) => void;
   upsertAttendance: (row: Attendance) => void;
   addPhoto: (photo: Photo) => void;
+  hydrateVideos: () => Promise<void>;
   syncAllToSheet: () => Promise<boolean>;
   clearAbsen: () => void;
 };
@@ -91,8 +95,20 @@ export const useRonda = create<State>()(
         const saved = s.attendance.find((a) => a.name === row.name && a.shiftDate === row.shiftDate);
         if (saved) void pushRowsToSheet(s.settings.sheetUrl, [attendanceToSheetRow(saved, s.photos)]);
       },
-      addPhoto: (photo) =>
-        set((s) => ({ photos: [photo, ...s.photos].slice(0, 80) })),
+      addPhoto: (photo) => set((s) => ({ photos: [photo, ...s.photos].slice(0, 80) })),
+      hydrateVideos: async () => {
+        const photos = get().photos;
+        const next = await Promise.all(
+          photos.map(async (p) => {
+            if (p.kind === "video" && p.mediaId && !p.src) {
+              const url = await loadMediaUrl(p.mediaId);
+              return url ? { ...p, src: url } : p;
+            }
+            return p;
+          }),
+        );
+        set({ photos: next });
+      },
       syncAllToSheet: async () => {
         const s = get();
         if (!s.settings.sheetUrl) return false;
@@ -101,6 +117,13 @@ export const useRonda = create<State>()(
       },
       clearAbsen: () => set({ attendance: [], photos: [] }),
     }),
-    { name: "ronda-siaga-v16" },
+    {
+      name: "ronda-siaga-v16",
+      partialize: (s) => ({
+        settings: s.settings,
+        attendance: s.attendance,
+        photos: s.photos.map((p) => (p.kind === "video" ? { ...p, src: "" } : p)),
+      }),
+    },
   ),
 );
