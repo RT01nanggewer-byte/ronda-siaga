@@ -3,7 +3,7 @@ import { CameraCapture, type CaptureResult } from "../components/camera-capture"
 import { GpsRadar } from "../components/gps-radar";
 import { POS_RADIUS_M } from "../lib/ronda/config";
 import { isInsidePos } from "../lib/ronda/geo";
-import { ROSTER } from "../lib/ronda/roster";
+import { ROSTER, allOfficers } from "../lib/ronda/roster";
 import { type AbsenMode, useRonda } from "../lib/ronda/store";
 import { getShiftWindow, pad2 } from "../lib/ronda/time";
 import type { Page } from "../app";
@@ -35,7 +35,7 @@ export function Absen({
   const [cam, setCam] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const officer = duty.find((d) => d.name === picked);
+  const officer = duty.find((d) => d.name === picked) ?? allOfficers().find((d) => d.name === picked);
   const stamp = `${pad2(win.parts.hour)}.${pad2(win.parts.minute)} WIB`;
   const inside = settings.testMode || (geo ? isInsidePos(geo.lat, geo.lng) : false);
 
@@ -72,49 +72,49 @@ export function Absen({
   }
 
   function submit() {
-    if (!officer) return setMsg("Pilih nama petugas dulu.");
-    if (!media) return setMsg("Ambil foto atau video dulu.");
-    if (mode === "masuk" && !settings.testMode && !win.canCheckIn) {
-      return setMsg("Absen masuk hanya 22.00–24.00 WIB. Aktifkan mode uji jika mencoba di luar jam.");
-    }
-    if (mode === "selesai" && !settings.testMode && !win.canCheckOut) {
-      return setMsg("Absen selesai hanya 22.01–05.00 WIB.");
-    }
-    if ((mode === "masuk" || mode === "selesai") && !inside) {
-      return setMsg(`Harus dalam ${POS_RADIUS_M} m dari poskamling.");
-    }
-    const existing = attendance.find((a) => a.name === officer.name && a.shiftDate === win.shiftDate);
-    if (mode === "masuk" && existing?.masuk && !existing.test && !settings.testMode) {
-      return setMsg("Sudah absen masuk malam ini.");
-    }
-    const id = `${officer.name}-${win.shiftDate}`;
-    if (mode === "masuk" || mode === "selesai") {
-      upsertAttendance({
-        id,
+    try {
+      if (!picked) return setMsg("Pilih nama petugas dulu.");
+      if (!officer) return setMsg("Nama petugas tidak ditemukan. Pilih ulang.");
+      if (!media) return setMsg("Ambil foto atau video dulu.");
+      if (mode === "masuk" && !settings.testMode && !win.canCheckIn) {
+        return setMsg("Absen masuk hanya 22.00–24.00 WIB.");
+      }
+      if (mode === "selesai" && !settings.testMode && !win.canCheckOut) {
+        return setMsg("Absen selesai hanya 22.01–05.00 WIB.");
+      }
+      if ((mode === "masuk" || mode === "selesai") && !inside) {
+        return setMsg(`Harus dalam ${POS_RADIUS_M} m dari poskamling.`);
+      }
+      const existing = attendance.find((a) => a.name === officer.name && a.shiftDate === win.shiftDate);
+      const id = `${officer.name}-${win.shiftDate}`;
+      if (mode === "masuk" || mode === "selesai") {
+        upsertAttendance({
+          id,
+          name: officer.name,
+          shiftDate: win.shiftDate,
+          hari: win.hari,
+          masuk: mode === "masuk" ? stamp : existing?.masuk,
+          selesai: mode === "selesai" ? stamp : existing?.selesai,
+          test: settings.testMode,
+          poin: 1,
+        });
+      }
+      addPhoto({
+        id: `${id}-${mode}-${Date.now()}`,
         name: officer.name,
+        mode,
+        src: media.src,
+        at: stamp,
         shiftDate: win.shiftDate,
-        hari: win.hari,
-        masuk: mode === "masuk" ? stamp : existing?.masuk,
-        selesai: mode === "selesai" ? stamp : existing?.selesai,
-        photoMasuk: mode === "masuk" && media.kind === "foto" ? media.src : existing?.photoMasuk,
-        photoSelesai: mode === "selesai" && media.kind === "foto" ? media.src : existing?.photoSelesai,
         test: settings.testMode,
-        poin: 1,
+        kind: media.kind,
+        mediaId: media.mediaId,
       });
+      setMsg("Terkirim.");
+      onPage(mode === "kampung" || mode === "kejadian" || media.kind === "video" ? "foto" : "beranda");
+    } catch (err) {
+      setMsg("Gagal menyimpan. Hapus data lama di Menu, lalu kirim lagi.");
     }
-    addPhoto({
-      id: `${id}-${mode}-${Date.now()}`,
-      name: officer.name,
-      mode,
-      src: media.src,
-      at: stamp,
-      shiftDate: win.shiftDate,
-      test: settings.testMode,
-      kind: media.kind,
-      mediaId: media.mediaId,
-    });
-    setMsg(null);
-    onPage(mode === "kampung" || mode === "kejadian" || media.kind === "video" ? "foto" : "beranda");
   }
 
   const sendLabel =
@@ -181,7 +181,7 @@ export function Absen({
       {step === 1 ? (
         <section className="mt-5 rounded-[28px] bg-[#141c18] p-5">
           <p className="text-lg font-medium">1. Pilih nama Anda</p>
-          <p className="mt-1 text-muted-foreground">Nama hijau jaga malam {win.hari}. Hanya mereka yang boleh absen.</p>
+          <p className="mt-1 text-muted-foreground">Nama hijau jaga malam {win.hari}.</p>
           <div className="mt-4 grid grid-cols-2 gap-2">
             {duty.map((m) => (
               <button
@@ -258,8 +258,8 @@ export function Absen({
           {settings.testMode ? <p className="mt-2 text-sm text-amber">Mode uji · jarak dianggap di pos.</p> : null}
           <button
             type="button"
-            className="relative z-30 mt-4 h-16 w-full rounded-2xl bg-primary text-lg font-semibold text-primary-foreground"
-            onClick={submit}
+            className="relative z-30 mt-4 mb-2 h-16 w-full rounded-2xl bg-primary text-lg font-semibold text-primary-foreground"
+            onClick={() => submit()}
           >
             {sendLabel}
           </button>
