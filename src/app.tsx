@@ -59,8 +59,8 @@ export function App() {
   const testNow = useMemo(() => {
     if (!testMode) return now;
     const [y, m, d] = realShift.shiftDate.split("-").map(Number);
-    return new Date(Date.UTC(y, m - 1, d, TEST_CLOCK.hour - 7, TEST_CLOCK.minute, now.getSeconds()));
-  }, [now, testMode, realShift.shiftDate]);
+    return new Date(Date.UTC(y, m - 1, d, TEST_CLOCK.hour - 7, TEST_CLOCK.minute, 0));
+  }, [testMode, realShift.shiftDate, now]);
 
   const effectiveGeo = testMode ? { lat: POS_LAT, lng: POS_LNG } : geo;
 
@@ -72,7 +72,7 @@ export function App() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-lg flex-col bg-background px-4 pt-5 safe-bottom">
+    <div className="mx-auto flex min-h-dvh max-w-lg flex-col bg-background px-4 pt-5 pb-24">
       {testMode ? (
         <p className="mb-3 rounded-2xl bg-[#2a2418] px-3 py-2 text-center text-sm text-amber">
           Mode uji coba · jam 22.15 · dinas {realShift.hari} · GPS di pos
@@ -86,7 +86,7 @@ export function App() {
       {page === "menu" && <Menu onPage={go} />}
       {page === "laporan" && <Laporan testNow={testNow} onPage={go} />}
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-[#0e1210]/96 backdrop-blur-md">
+      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-border/80 bg-[#0e1210]">
         <ul className="mx-auto grid max-w-lg grid-cols-5 pb-[env(safe-area-inset-bottom)]">
           {NAV.map(({ id, label, icon: Icon }) => {
             const active = page === id || (id === "menu" && page === "laporan");
