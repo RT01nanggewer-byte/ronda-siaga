@@ -23,14 +23,14 @@ export function GpsRadar({
   const badge = !geo
     ? { text: "Mencari GPS", cls: "bg-[#2a2418] text-[#d7b56a]" }
     : inside
-      ? { text: `Di dalam \u00b7 ${formatDistance(dist ?? 0)}`, cls: "bg-[#1d3a2c] text-[#9dccb0]" }
-      : { text: `Di luar \u00b7 ${formatDistance(dist ?? 0)}`, cls: "bg-[#3a2220] text-[#e0a39c]" };
+      ? { text: `Di dalam · ${formatDistance(dist ?? 0)}`, cls: "bg-[#1d3a2c] text-[#9dccb0]" }
+      : { text: `Di luar · ${formatDistance(dist ?? 0)}`, cls: "bg-[#3a2220] text-[#e0a39c]" };
 
   const hint = !geo
     ? "Menunggu lokasi"
     : inside
-      ? `Sudah di poskamling \u00b7 ${formatDistance(dist ?? 0)}`
-      : `Datang ke poskamling \u00b7 ${formatDistance(Math.max(0, (dist ?? 0) - POS_RADIUS_M))}`;
+      ? `Sudah di poskamling · ${formatDistance(dist ?? 0)}`
+      : `Datang ke poskamling · ${formatDistance(Math.max(0, (dist ?? 0) - POS_RADIUS_M))}`;
 
   return (
     <section className="mt-6 rounded-[28px] bg-[#121a16] p-5">
