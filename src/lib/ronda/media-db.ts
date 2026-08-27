@@ -34,3 +34,12 @@ export async function loadMediaUrl(id: string) {
     req.onerror = () => reject(req.error);
   });
 }
+
+export function dataUrlToBlob(dataUrl: string) {
+  const [head, body] = dataUrl.split(",");
+  const mime = /data:(.*?);base64/.exec(head)?.[1] ?? "image/jpeg";
+  const bin = atob(body ?? "");
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
