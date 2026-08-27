@@ -39,14 +39,14 @@ export function GpsRadar({
           <p className="text-[0.7rem] font-medium uppercase tracking-[0.18em] text-[#8b958c]">
             Radius poskamling
           </p>
-          <p className="mt-1 font-clock text-[2.15rem] leading-[0.95] text-[#f3eee4]">10 meter</p>
+          <p className="mt-1 font-clock text-[2.15rem] leading-[0.95] text-[#f3eee4]">{POS_RADIUS_M} meter</p>
         </div>
         <span className={`mt-1 shrink-0 rounded-full px-3 py-1.5 text-[0.92rem] font-medium ${badge.cls}`}>
           {badge.text}
         </span>
       </div>
 
-      <div className="relative mx-auto mt-2 h-[290px] w-[290px]">
+      <div className="relative mx-auto mt-2 h-[260px] w-[260px]">
         <span className="absolute rounded-full border border-[#2a3330]" style={{ inset: `${50 - outerPct}%` }} />
         <span className="absolute rounded-full border border-[#2f3b36]" style={{ inset: `${50 - midPct}%` }} />
         <span
@@ -62,10 +62,19 @@ export function GpsRadar({
         ) : null}
       </div>
 
-      <p className="mt-1 text-center text-[1.08rem] text-[#9aa39b]">{hint}</p>
-      <p className="mt-4 text-[0.98rem] leading-snug text-[#8b958c]">
-        Absen masuk dan selesai hanya dalam {POS_RADIUS_M} meter dari pos {POS_LAT}, {POS_LNG}.
-      </p>
+      <p className="mt-1 text-center text-[1.05rem] text-[#9aa39b]">{hint}</p>
+
+      <div className="mt-4 rounded-2xl border border-[#2a332e] bg-[#18231e] px-4 py-3">
+        <p className="text-[0.68rem] font-medium uppercase tracking-[0.16em] text-[#8fbf9d]">
+          Aturan absen di pos
+        </p>
+        <p className="mt-1 text-[1.02rem] leading-snug text-[#ece8df]">
+          Absen masuk dan selesai hanya dalam {POS_RADIUS_M} meter dari poskamling.
+        </p>
+        <p className="mt-1 text-[0.82rem] leading-snug text-[#8b958c]">
+          Titik pos {POS_LAT}, {POS_LNG}
+        </p>
+      </div>
     </section>
   );
 }
