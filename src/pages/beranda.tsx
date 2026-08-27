@@ -180,31 +180,38 @@ export function Beranda({
               tonightPhotos.find((p) => p.name === m.name && p.mode === "masuk") ??
               tonightPhotos.find((p) => p.name === m.name);
             return (
-              <li key={m.name} className="flex items-center gap-3 rounded-2xl bg-card p-3">
+              <li key={m.name} className="flex items-center gap-3 rounded-[22px] bg-[#141c18] p-3">
                 {thumb ? (
                   <button
                     type="button"
-                    className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted"
+                    className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-[#1b2420]"
                     onClick={() => setViewer({ src: thumb.src, caption: `${m.name} · ${row?.masuk ?? thumb.at}` })}
                   >
                     <img src={thumb.src} alt="" className="h-full w-full object-cover" />
                   </button>
                 ) : (
-                  <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-muted text-sm text-muted-foreground">
-                    Foto
+                  <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#1b2420] text-lg text-[#6f776f]">
+                    —
                   </span>
                 )}
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-lg font-medium">{m.name}</span>
+                  <span className="block truncate text-[1.15rem] font-medium">{m.name}</span>
                   <span className="text-sm text-muted-foreground">{row?.masuk ? `Masuk ${row.masuk}` : "Belum absen"}</span>
                 </span>
-                <span className={`text-sm ${row ? "text-primary" : "text-muted-foreground"}`}>
+                <span className={`rounded-full px-3 py-1 text-sm ${row ? "bg-primary/15 text-primary" : "bg-[#1b2420] text-muted-foreground"}`}>
                   {row ? "Hadir" : "Belum"}
                 </span>
               </li>
             );
           })}
         </ul>
+        <button
+          type="button"
+          className="mt-3 h-14 w-full rounded-2xl bg-[#1b2420] text-[1.08rem] font-medium text-[#d7e0d8]"
+          onClick={() => onPage("laporan")}
+        >
+          Buka laporan lengkap
+        </button>
       </section>
 
       {viewer ? <PhotoViewer src={viewer.src} caption={viewer.caption} onClose={() => setViewer(null)} /> : null}
