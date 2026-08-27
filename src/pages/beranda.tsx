@@ -1,4 +1,4 @@
-import { Bell, Lock } from "lucide-react";
+import { Bell, Lock, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { PhotoViewer } from "../components/photo-viewer";
 import { APP_NAME, DESA, POS_LAT, POS_LNG, POS_RADIUS_M } from "../lib/ronda/config";
@@ -67,6 +67,9 @@ export function Beranda({
       ? "Pos buka · absen masuk 22.00–24.00"
       : "Jam selesai · sampai 05.00";
 
+  const gpsLabel = !geo ? "Menunggu GPS" : inside ? "Sudah di dalam radius pos" : "Di luar radius pos";
+  const gpsTone = !geo ? "bg-[#2a2418] text-amber" : inside ? "bg-primary/15 text-primary" : "bg-[#3a2220] text-[#e8a39c]";
+
   return (
     <>
       {showNotice ? (
@@ -111,13 +114,15 @@ export function Beranda({
         <p className="text-[0.78rem] font-medium tracking-[0.22em] text-muted-foreground">
           WAKTU INDONESIA BARAT
         </p>
-        <p className="clock-face mt-2 text-[5.4rem] text-[#f3eee4]">
-          {pad2(real.hour)}.{pad2(real.minute)}
-          <sup className="ml-1 align-top text-[1.7rem] font-normal text-[#7d8578]">
+        <div className="mt-1 flex items-end justify-center gap-2">
+          <p className="clock-face text-[5.2rem] leading-none text-[#f3eee4]">
+            {pad2(real.hour)}.{pad2(real.minute)}
+          </p>
+          <p className="mb-2 min-w-[2ch] text-left font-clock text-[1.85rem] leading-none text-[#7d8578]">
             {pad2(real.second)}
-          </sup>
-        </p>
-        <p className="mt-2 text-[1.15rem] text-muted-foreground">{formatLongDate(real)}</p>
+          </p>
+        </div>
+        <p className="mt-3 text-[1.15rem] text-muted-foreground">{formatLongDate(real)}</p>
         <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#2a2418] px-3.5 py-1.5 text-[0.92rem] text-amber">
           <Lock size={14} />
           {lockText}
@@ -166,17 +171,30 @@ export function Beranda({
       </button>
 
       <section className="mt-6 rounded-[28px] bg-card p-5">
-        <p className="text-sm text-muted-foreground">Radius poskamling</p>
-        <p className="text-2xl font-medium">{POS_RADIUS_M} meter</p>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/15 text-primary">
+            <MapPin size={22} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-muted-foreground">Status GPS poskamling</p>
+            <p className="text-2xl font-medium">Radius {POS_RADIUS_M} meter</p>
+          </div>
+        </div>
+        <p className={`mt-4 inline-flex rounded-full px-3.5 py-1.5 text-sm font-medium ${gpsTone}`}>{gpsLabel}</p>
+        <p className="mt-3 text-base text-foreground/90">
           {geo
             ? inside
-              ? `Sudah di pos · ${formatDistance(dist ?? 0)}`
-              : `Mencari GPS · masih ${formatDistance(dist ?? 0)} dari pos`
-            : "Menunggu lokasi"}
+              ? `Jarak ke pos ${formatDistance(dist ?? 0)} — absen diizinkan.`
+              : `Jarak ke pos ${formatDistance(dist ?? 0)} — mendekat sampai ${POS_RADIUS_M} m.`
+            : "Aktifkan izin lokasi HP agar jarak ke pos bisa dihitung."}
         </p>
-        <p className="mt-2 text-sm leading-snug text-muted-foreground">
-          Absen masuk dan selesai hanya dalam {POS_RADIUS_M} meter dari pos {POS_LAT}, {POS_LNG}.
+        {geo ? (
+          <p className="mt-2 font-mono text-sm text-muted-foreground">
+            Posisi Anda {geo.lat.toFixed(6)}, {geo.lng.toFixed(6)}
+          </p>
+        ) : null}
+        <p className="mt-3 text-sm leading-snug text-muted-foreground">
+          Titik pos: {POS_LAT}, {POS_LNG}. Absen masuk dan selesai hanya dalam {POS_RADIUS_M} meter.
         </p>
       </section>
 

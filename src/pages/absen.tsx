@@ -1,6 +1,7 @@
+import { MapPin } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CameraCapture } from "../components/camera-capture";
-import { POS_RADIUS_M } from "../lib/ronda/config";
+import { POS_LAT, POS_LNG, POS_RADIUS_M } from "../lib/ronda/config";
 import { formatDistance, haversineMeters, isInsidePos } from "../lib/ronda/geo";
 import { ROSTER } from "../lib/ronda/roster";
 import { type AbsenMode, useRonda } from "../lib/ronda/store";
@@ -104,6 +105,15 @@ export function Absen({
     if (settings.testMode) setTestMode(false);
     onPage("beranda");
   }
+
+  const gpsLabel = settings.testMode
+    ? "Mode uji · lokasi dianggap di pos"
+    : !geo
+      ? "Menunggu GPS"
+      : inside
+        ? "Sudah di dalam radius pos"
+        : "Di luar radius pos";
+  const gpsTone = settings.testMode || inside ? "bg-primary/15 text-primary" : !geo ? "bg-[#2a2418] text-amber" : "bg-[#3a2220] text-[#e8a39c]";
 
   return (
     <>
@@ -209,16 +219,28 @@ export function Absen({
 
       {step >= 4 ? (
         <section className="mt-6 rounded-2xl bg-card p-4">
-          <p className="text-lg font-medium">4. Lokasi</p>
-          <p className="mt-1 text-muted-foreground">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-primary/15 text-primary">
+              <MapPin size={20} />
+            </span>
+            <div>
+              <p className="text-lg font-medium">4. Lokasi GPS</p>
+              <p className="text-sm text-muted-foreground">Radius pos {POS_RADIUS_M} meter</p>
+            </div>
+          </div>
+          <p className={`mt-3 inline-flex rounded-full px-3 py-1.5 text-sm font-medium ${gpsTone}`}>{gpsLabel}</p>
+          <p className="mt-3 text-foreground/90">
             {settings.testMode
-              ? "Mode uji · lokasi dianggap di pos."
+              ? "Mode uji aktif. Pengecekan jarak dilewati."
               : geo
-                ? inside
-                  ? `Sudah di pos · ${formatDistance(dist ?? 0)}`
-                  : `Masih ${formatDistance(dist ?? 0)} dari pos`
-                : "Menunggu GPS\u2026"}
+                ? `Jarak ke pos ${formatDistance(dist ?? 0)}. Titik pos ${POS_LAT}, ${POS_LNG}.`
+                : "Aktifkan izin lokasi HP untuk menghitung jarak ke pos."}
           </p>
+          {geo ? (
+            <p className="mt-1 font-mono text-sm text-muted-foreground">
+              Posisi Anda {geo.lat.toFixed(6)}, {geo.lng.toFixed(6)}
+            </p>
+          ) : null}
           <button
             type="button"
             className="mt-4 h-16 w-full rounded-2xl bg-primary text-lg font-semibold text-primary-foreground"
