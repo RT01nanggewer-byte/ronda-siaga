@@ -36,12 +36,21 @@ export function Absen({
   const [cam, setCam] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
+  function hasMasukTonight(name: string | null) {
+    if (!name) return false;
+    return attendance.some((a) => a.name === name && a.shiftDate === win.shiftDate && Boolean(a.masuk));
+  }
+
+  function skipPinFor(nextMode: AbsenMode, name: string | null) {
+    return (nextMode === "kampung" || nextMode === "kejadian") && hasMasukTonight(name);
+  }
+
   useEffect(() => {
     if (!absenStart) return;
     setMode(absenStart.mode);
     if (absenStart.name) {
       setPicked(absenStart.name);
-      if (absenStart.skipPin) {
+      if (absenStart.skipPin || skipPinFor(absenStart.mode, absenStart.name)) {
         setStep(3);
         setCam(true);
       } else {
@@ -72,7 +81,22 @@ export function Absen({
     setPin("");
     setMedia(null);
     setMsg(null);
-    setStep(2);
+    if (skipPinFor(mode, name)) {
+      setStep(3);
+      setCam(true);
+    } else {
+      setStep(2);
+    }
+  }
+
+  function chooseMode(next: AbsenMode) {
+    setMode(next);
+    setMsg(null);
+    setMedia(null);
+    if (skipPinFor(next, picked)) {
+      setStep(3);
+      setCam(true);
+    }
   }
 
   function checkPin() {
@@ -168,8 +192,13 @@ export function Absen({
                 onClick={() => {
                   if (n === 1) resetFlow();
                   else if (n === 2 && picked) {
-                    setStep(2);
-                    setCam(false);
+                    if (skipPinFor(mode, picked)) {
+                      setStep(3);
+                      setCam(true);
+                    } else {
+                      setStep(2);
+                      setCam(false);
+                    }
                   } else if (n === 3 && picked) {
                     setStep(3);
                     setCam(true);
@@ -188,10 +217,7 @@ export function Absen({
           <button
             key={m.id}
             type="button"
-            onClick={() => {
-              setMode(m.id);
-              setMsg(null);
-            }}
+            onClick={() => chooseMode(m.id)}
             className={`rounded-2xl px-1 py-2.5 text-sm ${mode === m.id ? "bg-primary text-primary-foreground" : "bg-[#141c18] text-muted-foreground"}`}
           >
             {m.label}
@@ -202,7 +228,12 @@ export function Absen({
       {step === 1 ? (
         <section className="mt-5 rounded-[28px] bg-[#141c18] p-5">
           <p className="text-lg font-medium">1. Pilih nama Anda</p>
-          <p className="mt-1 text-muted-foreground">Nama hijau jaga malam {win.hari}.</p>
+          <p className="mt-1 text-muted-foreground">
+            Nama hijau jaga malam {win.hari}.
+            {mode === "kampung" || mode === "kejadian"
+              ? " Yang sudah absen masuk tidak perlu PIN lagi."
+              : ""}
+          </p>
           <div className="mt-4 grid grid-cols-2 gap-2">
             {duty.map((m) => (
               <button
@@ -212,7 +243,11 @@ export function Absen({
                 className="min-h-16 rounded-2xl bg-primary/12 px-3 py-3 text-left font-medium text-primary"
               >
                 {m.name}
-                <span className="mt-0.5 block text-sm opacity-80">Jaga malam ini</span>
+                <span className="mt-0.5 block text-sm opacity-80">
+                  {hasMasukTonight(m.name) && (mode === "kampung" || mode === "kejadian")
+                    ? "Langsung kamera"
+                    : "Jaga malam ini"}
+                </span>
               </button>
             ))}
           </div>
