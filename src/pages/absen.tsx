@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CameraCapture, type CaptureResult } from "../components/camera-capture";
 import { GpsRadar } from "../components/gps-radar";
 import { POS_RADIUS_M } from "../lib/ronda/config";
 import { isInsidePos } from "../lib/ronda/geo";
+import { actionLabel } from "../lib/ronda/labels";
 import { ROSTER, allOfficers } from "../lib/ronda/roster";
 import { type AbsenMode, useRonda } from "../lib/ronda/store";
 import { getShiftWindow, pad2 } from "../lib/ronda/time";
@@ -10,17 +11,10 @@ import type { Page } from "../app";
 
 const MODES: { id: AbsenMode; label: string }[] = [
   { id: "masuk", label: "Masuk" },
-  { id: "selesai", label: "Selesai" },
+  { id: "selesai", label: "Pulang" },
   { id: "kampung", label: "Kampung" },
   { id: "kejadian", label: "Kejadian" },
 ];
-
-function actionLabel(mode: AbsenMode) {
-  if (mode === "selesai") return "Selesai";
-  if (mode === "kampung") return "Foto kampung";
-  if (mode === "kejadian") return "Foto kejadian";
-  return "Masuk";
-}
 
 export function Absen({
   testNow,
@@ -33,14 +27,31 @@ export function Absen({
 }) {
   const win = useMemo(() => getShiftWindow(testNow), [testNow]);
   const duty = ROSTER[win.weekday] ?? [];
-  const { settings, attendance, upsertAttendance, addPhoto } = useRonda();
-  const [mode, setMode] = useState<AbsenMode>("masuk");
+  const { settings, attendance, upsertAttendance, addPhoto, absenStart, setAbsenStart } = useRonda();
+  const [mode, setMode] = useState<AbsenMode>(absenStart?.mode ?? "masuk");
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [picked, setPicked] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(absenStart?.name ?? null);
   const [pin, setPin] = useState("");
   const [media, setMedia] = useState<CaptureResult | null>(null);
   const [cam, setCam] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!absenStart) return;
+    setMode(absenStart.mode);
+    if (absenStart.name) {
+      setPicked(absenStart.name);
+      if (absenStart.skipPin) {
+        setStep(3);
+        setCam(true);
+      } else {
+        setStep(2);
+      }
+    } else {
+      setStep(1);
+    }
+    setAbsenStart(null);
+  }, [absenStart, setAbsenStart]);
 
   const officer = duty.find((d) => d.name === picked) ?? allOfficers().find((d) => d.name === picked);
   const stamp = `${pad2(win.parts.hour)}.${pad2(win.parts.minute)} WIB`;
@@ -88,7 +99,7 @@ export function Absen({
         return setMsg("Absen masuk hanya 22.00–24.00 WIB.");
       }
       if (mode === "selesai" && !settings.testMode && !win.canCheckOut) {
-        return setMsg("Absen selesai hanya 22.01–05.00 WIB.");
+        return setMsg("Absen pulang hanya 22.01–05.00 WIB.");
       }
       if ((mode === "masuk" || mode === "selesai") && !inside) {
         return setMsg(`Harus dalam ${POS_RADIUS_M} m dari poskamling.`);
@@ -132,12 +143,14 @@ export function Absen({
         ? media?.kind === "video"
           ? "Kirim video kejadian"
           : "Kirim foto kejadian"
-        : `Kirim absen ${mode}`;
+        : mode === "selesai"
+          ? "Kirim absen pulang"
+          : "Kirim absen masuk";
 
   return (
     <div className="pb-28">
       <p className="text-[0.78rem] font-medium tracking-[0.16em] text-primary/80">IKUTI 4 LANGKAH</p>
-      <h1 className="mt-1 font-clock text-[2.45rem] leading-none">Absen {mode}</h1>
+      <h1 className="mt-1 font-clock text-[2.45rem] leading-none">Absen {mode === "selesai" ? "pulang" : mode}</h1>
       <p className="mt-2 text-[1.05rem] leading-snug text-muted-foreground">
         {win.hari} · giliran malam ini (berganti pukul 18.00)
       </p>
@@ -157,7 +170,7 @@ export function Absen({
                   else if (n === 2 && picked) {
                     setStep(2);
                     setCam(false);
-                  } else if (n === 3 && picked && pin === officer?.pin) {
+                  } else if (n === 3 && picked) {
                     setStep(3);
                     setCam(true);
                   }

@@ -22,12 +22,23 @@ export function Beranda({
   const win = useMemo(() => getShiftWindow(testNow), [testNow]);
   const real = useMemo(() => getWibParts(now), [now]);
   const duty = ROSTER[win.weekday] ?? [];
-  const { settings, attendance, photos, dismissNotice, setNotifyEnabled, markNotified, setTestMode } = useRonda();
+  const { settings, attendance, photos, dismissNotice, setNotifyEnabled, markNotified, setTestMode, setAbsenStart } =
+    useRonda();
   const showNotice = settings.dismissedShiftDate !== win.shiftDate;
   const [viewer, setViewer] = useState<{ src: string; caption: string } | null>(null);
 
   const tonight = attendance.filter((a) => a.shiftDate === win.shiftDate && !a.test);
   const tonightPhotos = photos.filter((p) => p.shiftDate === win.shiftDate);
+  const waitingPulang = tonight.filter((a) => a.masuk && !a.selesai);
+  const lastStillHere =
+    settings.lastMasukName &&
+    settings.lastMasukShift === win.shiftDate &&
+    waitingPulang.some((a) => a.name === settings.lastMasukName)
+      ? settings.lastMasukName
+      : waitingPulang.length === 1
+        ? waitingPulang[0].name
+        : null;
+  const showPulang = waitingPulang.length > 0;
 
   useEffect(() => {
     if (!settings.notifyEnabled) return;
@@ -59,11 +70,16 @@ export function Beranda({
     }
   }
 
+  function goAbsen(mode: "masuk" | "selesai", name: string | null, skipPin = false) {
+    setAbsenStart({ mode, name, skipPin });
+    onPage("absen");
+  }
+
   const lockText = win.locked
     ? `Terkunci · ${countdownToOpen(win.openInMin)}`
     : win.canCheckIn
       ? "Pos buka · absen masuk 22.00–24.00"
-      : "Jam selesai · sampai 05.00";
+      : "Jam pulang · sampai 05.00";
 
   return (
     <>
@@ -132,11 +148,25 @@ export function Beranda({
         <p className="text-sm text-muted-foreground">{win.rangeLabel}</p>
         <p className="mt-1 text-sm text-primary">{win.nextChangeLabel}</p>
         <ul className="mt-4 flex flex-col gap-2">
-          {duty.map((m) => (
-            <li key={m.name} className="rounded-2xl bg-primary/12 px-4 py-3 text-lg font-medium text-primary">
-              {m.name}
-            </li>
-          ))}
+          {duty.map((m) => {
+            const row = tonight.find((r) => r.name === m.name);
+            const needPulang = Boolean(row?.masuk && !row.selesai);
+            const done = Boolean(row?.masuk && row.selesai);
+            return (
+              <li key={m.name}>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-2xl bg-primary/12 px-4 py-3 text-left"
+                  onClick={() => goAbsen(needPulang ? "selesai" : "masuk", m.name, needPulang)}
+                >
+                  <span className="text-lg font-medium text-primary">{m.name}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {done ? "Sudah pulang" : needPulang ? "Absen pulang" : "Absen masuk"}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
         <div className="mt-4 flex flex-wrap gap-3 text-primary">
           <button type="button" className="underline-offset-4 hover:underline" onClick={() => onPage("jadwal")}>
@@ -151,16 +181,16 @@ export function Beranda({
       <button
         type="button"
         className="mt-5 h-16 w-full rounded-2xl bg-primary text-lg font-semibold text-primary-foreground"
-        onClick={() => onPage("absen")}
+        onClick={() => goAbsen(showPulang ? "selesai" : "masuk", lastStillHere, Boolean(lastStillHere && showPulang))}
       >
-        Absen masuk
+        {showPulang ? (lastStillHere ? `Absen pulang · ${lastStillHere}` : "Absen pulang") : "Absen masuk"}
       </button>
       <button
         type="button"
         className="mt-3 w-full rounded-2xl border border-border py-3 text-base text-muted-foreground"
         onClick={() => {
           setTestMode(true);
-          onPage("absen");
+          goAbsen("masuk", null);
         }}
       >
         Coba alur absen (uji coba)
@@ -173,13 +203,14 @@ export function Beranda({
         <p className="mt-1 text-muted-foreground">
           {tonight.length} dari {duty.length} petugas {win.hari} sudah absen.
         </p>
-        <p className="text-sm text-muted-foreground">Tekan foto untuk memperbesar.</p>
+        <p className="text-sm text-muted-foreground">Tekan foto untuk memperbesar. Nama yang sudah masuk bisa ketuk untuk absen pulang.</p>
         <ul className="mt-4 flex flex-col gap-2">
           {duty.map((m) => {
             const row = tonight.find((r) => r.name === m.name);
             const thumb =
               tonightPhotos.find((p) => p.name === m.name && p.mode === "masuk") ??
               tonightPhotos.find((p) => p.name === m.name);
+            const needPulang = Boolean(row?.masuk && !row.selesai);
             return (
               <li key={m.name} className="flex items-center gap-3 rounded-[22px] bg-[#141c18] p-3">
                 {thumb ? (
@@ -195,13 +226,27 @@ export function Beranda({
                     —
                   </span>
                 )}
-                <span className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 text-left"
+                  onClick={() => goAbsen(needPulang ? "selesai" : "masuk", m.name, needPulang)}
+                >
                   <span className="block truncate text-[1.15rem] font-medium">{m.name}</span>
-                  <span className="text-sm text-muted-foreground">{row?.masuk ? `Masuk ${row.masuk}` : "Belum absen"}</span>
-                </span>
-                <span className={`rounded-full px-3 py-1 text-sm ${row ? "bg-primary/15 text-primary" : "bg-[#1b2420] text-muted-foreground"}`}>
-                  {row ? "Hadir" : "Belum"}
-                </span>
+                  <span className="text-sm text-muted-foreground">
+                    {row?.selesai
+                      ? `Masuk ${row.masuk} · Pulang ${row.selesai}`
+                      : row?.masuk
+                        ? `Masuk ${row.masuk}`
+                        : "Belum absen"}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1 text-sm ${row?.selesai ? "bg-primary/15 text-primary" : row ? "bg-[#2a2418] text-amber" : "bg-[#1b2420] text-muted-foreground"}`}
+                  onClick={() => goAbsen(needPulang ? "selesai" : "masuk", m.name, needPulang)}
+                >
+                  {row?.selesai ? "Pulang" : row ? "Hadir" : "Belum"}
+                </button>
               </li>
             );
           })}
