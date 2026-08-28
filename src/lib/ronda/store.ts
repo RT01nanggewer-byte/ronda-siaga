@@ -31,6 +31,12 @@ export type Attendance = {
   poin: number;
 };
 
+export type AbsenStart = {
+  mode: AbsenMode;
+  name: string | null;
+  skipPin?: boolean;
+};
+
 type Settings = {
   lat: number;
   lng: number;
@@ -40,17 +46,21 @@ type Settings = {
   notifiedShiftDate: string | null;
   notifyEnabled: boolean;
   sheetUrl: string;
+  lastMasukName: string | null;
+  lastMasukShift: string | null;
 };
 
 type State = {
   settings: Settings;
   attendance: Attendance[];
   photos: Photo[];
+  absenStart: AbsenStart | null;
   setTestMode: (v: boolean) => void;
   dismissNotice: (shiftDate: string) => void;
   markNotified: (shiftDate: string) => void;
   setNotifyEnabled: (v: boolean) => void;
   setSheetUrl: (v: string) => void;
+  setAbsenStart: (v: AbsenStart | null) => void;
   upsertAttendance: (row: Attendance) => void;
   addPhoto: (photo: Photo) => void;
   hydrateVideos: () => Promise<void>;
@@ -70,9 +80,12 @@ export const useRonda = create<State>()(
         notifiedShiftDate: null,
         notifyEnabled: false,
         sheetUrl: "",
+        lastMasukName: null,
+        lastMasukShift: null,
       },
       attendance: [],
       photos: [],
+      absenStart: null,
       setTestMode: (v) => set((s) => ({ settings: { ...s.settings, testMode: v } })),
       dismissNotice: (shiftDate) =>
         set((s) => ({ settings: { ...s.settings, dismissedShiftDate: shiftDate } })),
@@ -80,16 +93,22 @@ export const useRonda = create<State>()(
         set((s) => ({ settings: { ...s.settings, notifiedShiftDate: shiftDate } })),
       setNotifyEnabled: (v) => set((s) => ({ settings: { ...s.settings, notifyEnabled: v } })),
       setSheetUrl: (v) => set((s) => ({ settings: { ...s.settings, sheetUrl: v.trim() } })),
+      setAbsenStart: (v) => set({ absenStart: v }),
       upsertAttendance: (row) => {
         set((s) => {
           const clean = { ...row, photoMasuk: undefined, photoSelesai: undefined };
           const i = s.attendance.findIndex((a) => a.name === row.name && a.shiftDate === row.shiftDate);
-          if (i >= 0) {
-            const next = [...s.attendance];
-            next[i] = { ...next[i], ...clean, poin: clean.selesai || next[i].selesai ? 2 : 1 };
-            return { attendance: next };
-          }
-          return { attendance: [...s.attendance, { ...clean, poin: clean.selesai ? 2 : 1 }] };
+          const nextRow =
+            i >= 0
+              ? { ...s.attendance[i], ...clean, poin: clean.selesai || s.attendance[i].selesai ? 2 : 1 }
+              : { ...clean, poin: clean.selesai ? 2 : 1 };
+          const attendance = i >= 0 ? s.attendance.map((a, idx) => (idx === i ? nextRow : a)) : [...s.attendance, nextRow];
+          const lastMasukName = clean.masuk && !clean.selesai ? clean.name : s.settings.lastMasukName === clean.name && clean.selesai ? null : s.settings.lastMasukName;
+          const lastMasukShift = lastMasukName ? clean.shiftDate : s.settings.lastMasukName === clean.name ? null : s.settings.lastMasukShift;
+          return {
+            attendance,
+            settings: { ...s.settings, lastMasukName, lastMasukShift },
+          };
         });
         const s = get();
         if (row.test || !s.settings.sheetUrl) return;
@@ -120,10 +139,15 @@ export const useRonda = create<State>()(
         const rows = s.attendance.filter((a) => !a.test).map((a) => attendanceToSheetRow(a, s.photos));
         return pushRowsToSheet(s.settings.sheetUrl, rows);
       },
-      clearAbsen: () => set({ attendance: [], photos: [] }),
+      clearAbsen: () =>
+        set((s) => ({
+          attendance: [],
+          photos: [],
+          settings: { ...s.settings, lastMasukName: null, lastMasukShift: null },
+        })),
     }),
     {
-      name: "ronda-siaga-v17",
+      name: "ronda-siaga-v18",
       partialize: (s) => ({
         settings: s.settings,
         attendance: s.attendance.map((a) => ({ ...a, photoMasuk: undefined, photoSelesai: undefined })),
