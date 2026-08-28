@@ -27,8 +27,14 @@ export function Beranda({
   const showNotice = settings.dismissedShiftDate !== win.shiftDate;
   const [viewer, setViewer] = useState<{ src: string; caption: string } | null>(null);
 
-  const tonight = attendance.filter((a) => a.shiftDate === win.shiftDate && !a.test);
-  const tonightPhotos = photos.filter((p) => p.shiftDate === win.shiftDate);
+  const tonight = attendance.filter((a) => {
+    if (a.shiftDate !== win.shiftDate) return false;
+    return settings.testMode ? true : !a.test;
+  });
+  const tonightPhotos = photos.filter((p) => {
+    if (p.shiftDate !== win.shiftDate) return false;
+    return settings.testMode ? true : !p.test;
+  });
   const waitingPulang = tonight.filter((a) => a.masuk && !a.selesai);
   const lastStillHere =
     settings.lastMasukName &&
@@ -190,7 +196,12 @@ export function Beranda({
         className="mt-3 w-full rounded-2xl border border-border py-3 text-base text-muted-foreground"
         onClick={() => {
           setTestMode(true);
-          goAbsen("masuk", null);
+          const waiting = attendance.filter((a) => a.shiftDate === win.shiftDate && a.masuk && !a.selesai);
+          const name =
+            settings.lastMasukName && waiting.some((a) => a.name === settings.lastMasukName)
+              ? settings.lastMasukName
+              : (waiting[0]?.name ?? null);
+          goAbsen(name ? "selesai" : "masuk", name, Boolean(name));
         }}
       >
         Coba alur absen (uji coba)
