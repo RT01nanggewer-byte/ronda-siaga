@@ -7,7 +7,7 @@ import { getShiftWindow } from "../lib/ronda/time";
 const FILTERS: { id: "semua" | AbsenMode; label: string }[] = [
   { id: "semua", label: "Semua" },
   { id: "masuk", label: "Masuk" },
-  { id: "selesai", label: "Selesai" },
+  { id: "selesai", label: "Pulang" },
   { id: "kampung", label: "Foto kampung" },
   { id: "kejadian", label: "Foto/video" },
 ];

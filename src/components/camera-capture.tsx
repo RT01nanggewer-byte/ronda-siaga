@@ -12,7 +12,7 @@ export type CaptureResult = {
 
 function badgeText(mode: AbsenMode) {
   if (mode === "masuk") return "MASUK";
-  if (mode === "selesai") return "SELESAI";
+  if (mode === "selesai") return "PULANG";
   if (mode === "kampung") return "FOTO KAMPUNG";
   return "FOTO KEJADIAN";
 }
@@ -148,6 +148,15 @@ export function CameraCapture({
     }
   }
 
+  const photoBtn =
+    mode === "kampung"
+      ? "Ambil foto kampung"
+      : mode === "kejadian"
+        ? "Ambil foto kejadian"
+        : mode === "selesai"
+          ? "Ambil foto pulang"
+          : "Ambil foto masuk";
+
   return (
     <div className="fixed inset-0 z-[90] flex flex-col bg-[#0b0f0d] px-5 pt-8 pb-8">
       <p className="text-sm tracking-[0.14em] text-white/50">KAMERA BAWAAN HP</p>
@@ -161,7 +170,7 @@ export function CameraCapture({
         {err ? <p className="text-center text-[#e08b84]">{err}</p> : null}
         {busy ? <p className="text-center text-white/70">Menyimpan...</p> : null}
         <label className="flex h-16 w-full cursor-pointer items-center justify-center rounded-2xl bg-primary text-lg font-semibold text-primary-foreground">
-          {mode === "kampung" ? "Ambil foto kampung" : mode === "kejadian" ? "Ambil foto kejadian" : "Ambil foto kamera HP"}
+          {photoBtn}
           <input
             type="file"
             accept="image/*"
