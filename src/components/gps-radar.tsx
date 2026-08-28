@@ -69,7 +69,7 @@ export function GpsRadar({
           Aturan absen di pos
         </p>
         <p className="mt-1 text-[1.02rem] leading-snug text-[#ece8df]">
-          Absen masuk dan selesai hanya dalam {POS_RADIUS_M} meter dari poskamling.
+          Perhatikan Titik Merah, jika Titik berada dalam lingkaran hijau anda bisa melakukan absen masuk dan selesai dalam radius {POS_RADIUS_M} meter.
         </p>
         <p className="mt-1 text-[0.82rem] leading-snug text-[#8b958c]">
           Titik pos {POS_LAT}, {POS_LNG}
