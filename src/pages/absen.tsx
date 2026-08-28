@@ -15,6 +15,13 @@ const MODES: { id: AbsenMode; label: string }[] = [
   { id: "kejadian", label: "Kejadian" },
 ];
 
+function actionLabel(mode: AbsenMode) {
+  if (mode === "selesai") return "Selesai";
+  if (mode === "kampung") return "Foto kampung";
+  if (mode === "kejadian") return "Foto kejadian";
+  return "Masuk";
+}
+
 export function Absen({
   testNow,
   geo,
@@ -38,6 +45,7 @@ export function Absen({
   const officer = duty.find((d) => d.name === picked) ?? allOfficers().find((d) => d.name === picked);
   const stamp = `${pad2(win.parts.hour)}.${pad2(win.parts.minute)} WIB`;
   const inside = settings.testMode || (geo ? isInsidePos(geo.lat, geo.lng) : false);
+  const nextLabel = actionLabel(mode);
 
   function resetFlow() {
     setPicked(null);
@@ -112,7 +120,7 @@ export function Absen({
       });
       setMsg("Terkirim.");
       onPage(mode === "kampung" || mode === "kejadian" || media.kind === "video" ? "foto" : "beranda");
-    } catch (err) {
+    } catch {
       setMsg("Gagal menyimpan. Hapus data lama di Menu, lalu kirim lagi.");
     }
   }
@@ -224,7 +232,7 @@ export function Absen({
             )}
           </div>
           <button type="button" className="mt-4 h-14 w-full rounded-2xl bg-primary text-lg font-medium text-primary-foreground" onClick={checkPin}>
-            Lanjut ke kamera
+            {nextLabel}
           </button>
           <button type="button" className="mt-3 w-full text-muted-foreground" onClick={() => resetFlow()}>
             Ganti nama
@@ -234,14 +242,14 @@ export function Absen({
 
       {step === 3 && picked ? (
         <section className="mt-5 rounded-[28px] bg-[#141c18] p-5">
-          <p className="text-lg font-medium">3. Kamera HP {picked}</p>
+          <p className="text-lg font-medium">3. {nextLabel} {picked}</p>
           {media?.kind === "video" ? (
             <video src={media.src} className="mt-3 h-44 w-full rounded-2xl object-cover" controls playsInline />
           ) : media ? (
             <img src={media.src} alt="" className="mt-3 h-44 w-full rounded-2xl object-cover" />
           ) : null}
           <button type="button" className="mt-4 h-14 w-full rounded-2xl bg-primary text-lg font-medium text-primary-foreground" onClick={() => setCam(true)}>
-            {media ? "Ambil ulang" : "Buka kamera HP"}
+            {media ? "Ambil ulang" : nextLabel}
           </button>
           {media ? (
             <button type="button" className="mt-3 h-12 w-full rounded-2xl bg-[#1b2420]" onClick={() => setStep(4)}>
